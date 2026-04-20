@@ -1,29 +1,58 @@
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
-
-const statusData = [
-  { id: 'status-1', name: 'Pendente', value: 3 },
-  { id: 'status-2', name: 'Em Andamento', value: 7 },
-  { id: 'status-3', name: 'Revisão', value: 3 },
-  { id: 'status-4', name: 'Concluído', value: 5 },
-];
-
-const memberData = [
-  { id: 'member-1', name: 'Arthur', tarefas: 5, concluidas: 2 },
-  { id: 'member-2', name: 'Yasmim', tarefas: 4, concluidas: 1 },
-  { id: 'member-3', name: 'Alexandre', tarefas: 6, concluidas: 2 },
-  { id: 'member-4', name: 'Nikolas', tarefas: 3, concluidas: 1 },
-];
-
-const timelineData = [
-  { id: 'week-1', semana: 'Sem 1', criadas: 4, concluidas: 2 },
-  { id: 'week-2', semana: 'Sem 2', criadas: 6, concluidas: 3 },
-  { id: 'week-3', semana: 'Sem 3', criadas: 5, concluidas: 4 },
-  { id: 'week-4', semana: 'Sem 4', criadas: 3, concluidas: 5 },
-];
+import { useTasksContext } from '../../lib/TasksContext';
 
 const COLORS = ['#9CA3AF', '#3B82F6', '#F59E0B', '#22C55E'];
 
 export function ReportsView() {
+  const { tasks } = useTasksContext();
+
+  const statusCounts = tasks.reduce((acc, t) => {
+    acc[t.status] = (acc[t.status] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const statusData = [
+    { id: 'status-1', name: 'Pendente', value: statusCounts['Pendente'] || 0 },
+    { id: 'status-2', name: 'Em Andamento', value: statusCounts['Em Andamento'] || 0 },
+    { id: 'status-3', name: 'Revisão', value: statusCounts['Revisão'] || 0 },
+    { id: 'status-4', name: 'Concluído', value: statusCounts['Concluído'] || 0 },
+  ];
+
+  const memberData = ['Arthur', 'Yasmim', 'Alexandre', 'Nikolas'].map((member, i) => {
+    const memberTasks = tasks.filter((t) => t.assignee === member);
+    return {
+      id: `member-${i + 1}`,
+      name: member,
+      tarefas: memberTasks.length,
+      concluidas: memberTasks.filter((t) => t.status === 'Concluído').length,
+    };
+  });
+
+  const now = new Date();
+  const timelineData = Array.from({ length: 4 }, (_, i) => {
+    const weekStart = new Date(now);
+    weekStart.setDate(now.getDate() - (3 - i) * 7);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekStart.getDate() + 7);
+    const weekTasks = tasks.filter((t) => {
+      if (!t.due_date) return false;
+      const d = new Date(t.due_date);
+      return d >= weekStart && d < weekEnd;
+    });
+    return {
+      id: `week-${i + 1}`,
+      semana: `Sem ${i + 1}`,
+      criadas: weekTasks.length,
+      concluidas: weekTasks.filter((t) => t.status === 'Concluído').length,
+    };
+  });
+
+  const total = tasks.length;
+  const concluidas = tasks.filter((t) => t.status === 'Concluído').length;
+  const taxa = total > 0 ? Math.round((concluidas / total) * 100) : 0;
+  const criticas = tasks.filter((t) => t.priority === 'Crítica').length;
+  const mediaPorMembro = total > 0 ? (total / 4).toFixed(1) : '0';
+
   return (
     <div className="h-full overflow-y-auto custom-scrollbar bg-background">
       <div className="p-8 pb-12 min-h-full">
@@ -35,10 +64,10 @@ export function ReportsView() {
         {/* Stats Cards */}
         <div className="grid grid-cols-4 gap-4 mb-6">
           {[
-            { id: 'stat-total', label: 'Total de Tarefas', value: '18', color: '#4A9EDB' },
-            { id: 'stat-taxa', label: 'Taxa de Conclusão', value: '44%', color: '#22C55E' },
-            { id: 'stat-media', label: 'Média por Membro', value: '4.5', color: '#F59E0B' },
-            { id: 'stat-criticas', label: 'Tarefas Críticas', value: '3', color: '#EF4444' },
+            { id: 'stat-total', label: 'Total de Tarefas', value: String(total), color: '#4A9EDB' },
+            { id: 'stat-taxa', label: 'Taxa de Conclusão', value: `${taxa}%`, color: '#22C55E' },
+            { id: 'stat-media', label: 'Média por Membro', value: mediaPorMembro, color: '#F59E0B' },
+            { id: 'stat-criticas', label: 'Tarefas Críticas', value: String(criticas), color: '#EF4444' },
           ].map((stat) => (
             <div key={stat.id} className="bg-card border border-border rounded-xl p-5 shadow-sm">
               <p className="text-sm text-muted-foreground mb-2">{stat.label}</p>

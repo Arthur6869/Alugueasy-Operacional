@@ -38,11 +38,7 @@ export function TaskDetailPanel({ task, onClose, onUpdate, onDelete }: TaskDetai
   const [replyText, setReplyText] = useState('');
   const [attachments, setAttachments] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [subtasks, setSubtasks] = useState([
-    { id: '1', title: 'Coletar dados', completed: true, assignee: 'Arthur' as const },
-    { id: '2', title: 'Analisar métricas', completed: false, assignee: 'Yasmim' as const },
-    { id: '3', title: 'Gerar relatório', completed: false, assignee: null },
-  ]);
+  const [subtasks, setSubtasks] = useState<{ id: string; title: string; completed: boolean; assignee: typeof teamMembers[number] | null }[]>([]);
 
   interface CommentItem {
     id: string;
@@ -51,17 +47,9 @@ export function TaskDetailPanel({ task, onClose, onUpdate, onDelete }: TaskDetai
     time: string;
     replies: CommentItem[];
   }
-  const [comments, setComments] = useState<CommentItem[]>([
-    { id: '1', user: 'Yasmim', text: 'Precisamos incluir os dados do Q2 também', time: '2h atrás', replies: [] },
-    { id: '2', user: 'Alexandre', text: 'Revisão concluída, apenas ajustes menores necessários', time: '5h atrás', replies: [] },
-  ]);
+  const [comments, setComments] = useState<CommentItem[]>([]);
 
-  const activities = [
-    { id: '1', user: 'Arthur' as const, action: 'mudou o status para', value: 'Em Andamento', time: '1h atrás' },
-    { id: '2', user: 'Yasmim' as const, action: 'adicionou comentário', value: '', time: '2h atrás' },
-    { id: '3', user: 'Nikolas' as const, action: 'atualizou a prioridade para', value: 'Alta', time: '1d atrás' },
-    { id: '4', user: 'Arthur' as const, action: 'criou a tarefa', value: '', time: '3d atrás' },
-  ];
+  const activities: { id: string; user: typeof teamMembers[number]; action: string; value: string; time: string }[] = [];
 
   const completedSubtasks = subtasks.filter(s => s.completed).length;
   const totalSubtasks = subtasks.length;
@@ -389,11 +377,11 @@ export function TaskDetailPanel({ task, onClose, onUpdate, onDelete }: TaskDetai
             <div className="grid grid-cols-2 gap-4 text-xs text-[#6B7280]">
               <div className="flex items-center gap-2">
                 <Clock size={14} />
-                <span>Criado por <strong>Arthur</strong> · 10 Jul</span>
+                <span>Responsável: <strong>{assignee}</strong></span>
               </div>
               <div className="flex items-center gap-2">
                 <Clock size={14} />
-                <span>Atualizado há 2h</span>
+                <span>Prazo: {date}</span>
               </div>
             </div>
 

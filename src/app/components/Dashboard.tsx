@@ -97,7 +97,7 @@ export function Dashboard({ currentUser }: DashboardProps) {
 
   return (
     <div className="h-full overflow-y-auto bg-background">
-      <div className="p-4 md:p-6 lg:p-8 space-y-5 pb-12 max-w-7xl mx-auto">
+      <div className="p-4 md:p-6 lg:p-8 space-y-5 pb-12">
 
         {/* ── Page Header ── */}
         <div className="flex items-center justify-between">

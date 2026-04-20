@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef } from 'react';
 import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, Calendar, Filter } from 'lucide-react';
 import { TeamAvatar } from './TeamAvatar';
+import { useTasksContext } from '../../lib/TasksContext';
 
 interface GanttTask {
   id: string;
@@ -14,104 +15,76 @@ interface GanttTask {
   dependencies?: string[];
 }
 
-const mockTasks: GanttTask[] = [
-  {
-    id: '1',
-    name: 'Configurar CI/CD',
-    group: 'Desenvolvimento',
-    startDate: new Date(2026, 6, 1),
-    endDate: new Date(2026, 6, 15),
-    progress: 100,
-    assignee: 'Arthur',
-    color: '#8B5CF6',
-  },
-  {
-    id: '2',
-    name: 'Setup banco de dados',
-    group: 'Desenvolvimento',
-    startDate: new Date(2026, 6, 5),
-    endDate: new Date(2026, 6, 10),
-    progress: 100,
-    assignee: 'Arthur',
-    color: '#8B5CF6',
-  },
-  {
-    id: '3',
-    name: 'Implementar API',
-    group: 'Desenvolvimento',
-    startDate: new Date(2026, 6, 11),
-    endDate: new Date(2026, 6, 25),
-    progress: 60,
-    assignee: 'Arthur',
-    color: '#8B5CF6',
-    dependencies: ['2'],
-  },
-  {
-    id: '4',
-    name: 'Revisar contratos Q3',
-    group: 'Operacional',
-    startDate: new Date(2026, 6, 8),
-    endDate: new Date(2026, 6, 20),
-    progress: 45,
-    assignee: 'Yasmim',
-    color: '#4A9EDB',
-  },
-  {
-    id: '5',
-    name: 'Deploy produção',
-    group: 'Desenvolvimento',
-    startDate: new Date(2026, 6, 18),
-    endDate: new Date(2026, 6, 22),
-    progress: 75,
-    assignee: 'Alexandre',
-    color: '#8B5CF6',
-    dependencies: ['3'],
-  },
-  {
-    id: '6',
-    name: 'Relatório financeiro',
-    group: 'Financeiro',
-    startDate: new Date(2026, 6, 10),
-    endDate: new Date(2026, 6, 18),
-    progress: 30,
-    assignee: 'Nikolas',
-    color: '#10B981',
-  },
-  {
-    id: '7',
-    name: 'Análise de métricas',
-    group: 'Operacional',
-    startDate: new Date(2026, 6, 15),
-    endDate: new Date(2026, 6, 28),
-    progress: 20,
-    assignee: 'Yasmim',
-    color: '#4A9EDB',
-  },
-];
+const groupColors: Record<string, string> = {
+  Desenvolvimento: '#8B5CF6',
+  Operacional: '#4A9EDB',
+  Financeiro: '#10B981',
+};
+
+const statusToProgress: Record<string, number> = {
+  Pendente: 0,
+  'Em Andamento': 50,
+  Revisão: 75,
+  Concluído: 100,
+};
 
 export function GanttView() {
+  const { tasks } = useTasksContext();
   const [zoom, setZoom] = useState(1);
   const [hoveredTask, setHoveredTask] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
+  const ganttTasks: GanttTask[] = tasks
+    .filter((t) => !!t.due_date)
+    .map((t) => {
+      const endDate = new Date(t.due_date! + 'T00:00:00');
+      const startDate = t.created_at
+        ? new Date(t.created_at)
+        : new Date(endDate.getTime() - 7 * 24 * 60 * 60 * 1000);
+      startDate.setHours(0, 0, 0, 0);
+      return {
+        id: t.id,
+        name: t.name,
+        group: t.group,
+        startDate,
+        endDate,
+        progress: statusToProgress[t.status] ?? 0,
+        assignee: t.assignee,
+        color: groupColors[t.group] || '#4A9EDB',
+      };
+    });
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  if (ganttTasks.length === 0) {
+    return (
+      <div className="h-full flex flex-col bg-background">
+        <div className="bg-white border-b border-gray-200 p-4 flex items-center gap-4">
+          <button className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
+            <Calendar size={16} />
+            <span>Gráfico de Gantt</span>
+          </button>
+        </div>
+        <div className="flex-1 flex flex-col items-center justify-center text-center">
+          <Calendar size={48} className="text-gray-300 mb-4" />
+          <p className="text-gray-500 font-medium">Sem tarefas com prazo definido</p>
+          <p className="text-sm text-gray-400 mt-1">Crie tarefas com prazo para visualizá-las no Gantt</p>
+        </div>
+      </div>
+    );
+  }
+
   // Get date range
-  const minDate = new Date(
-    Math.min(...mockTasks.map(t => t.startDate.getTime()))
-  );
-  const maxDate = new Date(
-    Math.max(...mockTasks.map(t => t.endDate.getTime()))
-  );
+  const minDate = new Date(Math.min(...ganttTasks.map((t) => t.startDate.getTime())));
+  const maxDate = new Date(Math.max(...ganttTasks.map((t) => t.endDate.getTime())));
 
   // Expand range to include some padding
   minDate.setDate(minDate.getDate() - 2);
   maxDate.setDate(maxDate.getDate() + 5);
 
-  const totalDays = Math.ceil(
-    (maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24)
-  );
-
+  const totalDays = Math.ceil((maxDate.getTime() - minDate.getTime()) / (1000 * 60 * 60 * 24));
   const dayWidth = 40 * zoom;
-  const today = new Date(2026, 6, 18); // July 18, 2026
 
   const getDaysSinceStart = (date: Date) => {
     return Math.ceil(
@@ -150,17 +123,11 @@ export function GanttView() {
   }
 
   // Group tasks
-  const groupedTasks = mockTasks.reduce((acc, task) => {
+  const groupedTasks = ganttTasks.reduce((acc, task) => {
     if (!acc[task.group]) acc[task.group] = [];
     acc[task.group].push(task);
     return acc;
   }, {} as Record<string, GanttTask[]>);
-
-  const groupColors: Record<string, string> = {
-    'Desenvolvimento': '#8B5CF6',
-    'Operacional': '#4A9EDB',
-    'Financeiro': '#10B981',
-  };
 
   return (
     <div className="h-full overflow-hidden flex flex-col bg-background">
@@ -201,7 +168,7 @@ export function GanttView() {
           <div className="flex items-center gap-2">
             <button className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
               <Calendar size={16} />
-              <span>Julho 2026</span>
+              <span>{today.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}</span>
             </button>
             <button className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 text-sm">
               <Filter size={16} />
@@ -395,7 +362,7 @@ export function GanttView() {
 
                         {/* Dependencies */}
                         {task.dependencies?.map((depId) => {
-                          const depTask = mockTasks.find(t => t.id === depId);
+                          const depTask = ganttTasks.find(t => t.id === depId);
                           if (!depTask) return null;
 
                           const depEndDay = getDaysSinceStart(depTask.endDate);

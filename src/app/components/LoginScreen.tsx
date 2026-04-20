@@ -1,41 +1,54 @@
 import { useState } from 'react';
 import { AlugEasyLogo } from './AlugEasyLogo';
-import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, Loader2 } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
+
+type TeamMember = 'Arthur' | 'Yasmim' | 'Alexandre' | 'Nikolas';
 
 interface LoginScreenProps {
-  onLogin: (member: 'Arthur' | 'Yasmim' | 'Alexandre' | 'Nikolas') => void;
+  onLogin: (member: TeamMember) => void;
 }
 
-const users = {
-  'arthur@alugueasy.com': { password: 'arthur123', name: 'Arthur' as const },
-  'yasmim@alugueasy.com': { password: 'yasmim123', name: 'Yasmim' as const },
-  'alexandre@alugueasy.com': { password: 'alexandre123', name: 'Alexandre' as const },
-  'nikolas@alugueasy.com': { password: 'nikolas123', name: 'Nikolas' as const },
-};
+const validMembers: TeamMember[] = ['Arthur', 'Yasmim', 'Alexandre', 'Nikolas'];
+
+function nameFromEmail(email: string): TeamMember | null {
+  const prefix = email.split('@')[0];
+  const capitalized = prefix.charAt(0).toUpperCase() + prefix.slice(1).toLowerCase();
+  return validMembers.includes(capitalized as TeamMember) ? (capitalized as TeamMember) : null;
+}
 
 export function LoginScreen({ onLogin }: LoginScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
-    const user = users[email.toLowerCase() as keyof typeof users];
+    const { data, error: authError } = await supabase.auth.signInWithPassword({
+      email: email.toLowerCase().trim(),
+      password,
+    });
 
-    if (!user) {
-      setError('Usuário não encontrado');
+    setLoading(false);
+
+    if (authError) {
+      setError('Email ou senha incorretos');
       return;
     }
 
-    if (user.password !== password) {
-      setError('Senha incorreta');
+    const member = nameFromEmail(data.user?.email ?? '');
+    if (!member) {
+      setError('Usuário não autorizado nesta plataforma');
+      await supabase.auth.signOut();
       return;
     }
 
-    onLogin(user.name);
+    onLogin(member);
   };
 
   return (
@@ -101,10 +114,12 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
 
           <button
             type="submit"
-            className="w-full py-3 rounded-lg font-medium text-white transition-all hover:opacity-90"
+            disabled={loading}
+            className="w-full py-3 rounded-lg font-medium text-white transition-all hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2"
             style={{ backgroundColor: '#1E3A5F' }}
           >
-            Entrar
+            {loading && <Loader2 size={18} className="animate-spin" />}
+            {loading ? 'Entrando...' : 'Entrar'}
           </button>
         </form>
       </div>
