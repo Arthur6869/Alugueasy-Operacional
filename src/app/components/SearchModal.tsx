@@ -1,26 +1,23 @@
 import { useState } from 'react';
 import { Search, X } from 'lucide-react';
+import { useTasksContext } from '../../lib/TasksContext';
 
 interface SearchModalProps {
   onClose: () => void;
 }
 
-const mockResults = [
-  { id: '1', type: 'Tarefa', title: 'Configurar CI/CD', group: 'Desenvolvimento' },
-  { id: '2', type: 'Tarefa', title: 'Revisar contratos Q3', group: 'Operacional' },
-  { id: '3', type: 'Tarefa', title: 'Deploy produção', group: 'Desenvolvimento' },
-  { id: '4', type: 'Tarefa', title: 'Relatório financeiro', group: 'Financeiro' },
-];
-
 export function SearchModal({ onClose }: SearchModalProps) {
   const [searchTerm, setSearchTerm] = useState('');
+  const { tasks } = useTasksContext();
 
   const filteredResults = searchTerm
-    ? mockResults.filter(
-        (item) =>
-          item.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          item.group.toLowerCase().includes(searchTerm.toLowerCase())
-      )
+    ? tasks
+        .filter(
+          (task) =>
+            task.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+            task.group.toLowerCase().includes(searchTerm.toLowerCase())
+        )
+        .map((task) => ({ id: task.id, type: 'Tarefa', title: task.name, group: task.group }))
     : [];
 
   return (

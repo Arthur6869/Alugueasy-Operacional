@@ -1,21 +1,22 @@
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useState } from 'react';
+import { useTasksContext } from '../../lib/TasksContext';
 
 const daysOfWeek = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const months = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
 
-const tasks = [
-  { date: 15, title: 'Configurar CI/CD', group: 'Desenvolvimento', color: '#8B5CF6' },
-  { date: 18, title: 'Relatório financeiro', group: 'Financeiro', color: '#10B981' },
-  { date: 18, title: 'Análise de métricas', group: 'Operacional', color: '#4A9EDB' },
-  { date: 20, title: 'Revisar contratos Q3', group: 'Operacional', color: '#4A9EDB' },
-  { date: 21, title: 'Deploy produção', group: 'Desenvolvimento', color: '#8B5CF6' },
-  { date: 22, title: 'Reunião cliente', group: 'Operacional', color: '#4A9EDB' },
-];
+const groupColors: Record<string, string> = {
+  Desenvolvimento: '#8B5CF6',
+  Operacional: '#4A9EDB',
+  Financeiro: '#10B981',
+};
+
+const todayDate = new Date();
 
 export function CalendarView() {
-  const [currentMonth, setCurrentMonth] = useState(6); // Julho = 6
-  const [currentYear, setCurrentYear] = useState(2026);
+  const { tasks } = useTasksContext();
+  const [currentMonth, setCurrentMonth] = useState(todayDate.getMonth());
+  const [currentYear, setCurrentYear] = useState(todayDate.getFullYear());
 
   const getDaysInMonth = (month: number, year: number) => {
     return new Date(year, month + 1, 0).getDate();
@@ -27,7 +28,22 @@ export function CalendarView() {
 
   const daysInMonth = getDaysInMonth(currentMonth, currentYear);
   const firstDay = getFirstDayOfMonth(currentMonth, currentYear);
-  const today = 18;
+  const todayDay = todayDate.getDate();
+  const isCurrentMonthYear = currentMonth === todayDate.getMonth() && currentYear === todayDate.getFullYear();
+
+  const getTasksForDay = (day: number) => {
+    return tasks
+      .filter((task) => {
+        if (!task.due_date) return false;
+        const d = new Date(task.due_date + 'T00:00:00');
+        return d.getDate() === day && d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+      })
+      .map((task) => ({
+        title: task.name,
+        group: task.group,
+        color: groupColors[task.group] || '#4A9EDB',
+      }));
+  };
 
   const prevMonth = () => {
     if (currentMonth === 0) {
@@ -45,10 +61,6 @@ export function CalendarView() {
     } else {
       setCurrentMonth(currentMonth + 1);
     }
-  };
-
-  const getTasksForDay = (day: number) => {
-    return tasks.filter(task => task.date === day);
   };
 
   return (
@@ -69,8 +81,8 @@ export function CalendarView() {
               </button>
               <button
                 onClick={() => {
-                  setCurrentMonth(6);
-                  setCurrentYear(2026);
+                  setCurrentMonth(todayDate.getMonth());
+                  setCurrentYear(todayDate.getFullYear());
                 }}
                 className="px-3 py-1 text-sm text-[#4A9EDB] hover:bg-[#4A9EDB]/10 rounded-lg transition-all"
               >
@@ -108,7 +120,7 @@ export function CalendarView() {
             {Array.from({ length: daysInMonth }).map((_, idx) => {
               const day = idx + 1;
               const dayTasks = getTasksForDay(day);
-              const isToday = day === today;
+              const isToday = isCurrentMonthYear && day === todayDay;
 
               return (
                 <div

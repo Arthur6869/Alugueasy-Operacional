@@ -20,6 +20,7 @@ export interface Task {
   priority: TaskPriority;
   date: string;
   due_date?: string;
+  created_at?: string;
   tags: string[];
   comments: number;
   group: TaskGroup;
@@ -71,6 +72,7 @@ function rowToTask(row: any): Task {
     group: row.group,
     date: formatDisplayDate(row.due_date),
     due_date: row.due_date,
+    created_at: row.created_at,
     tags: row.tags ?? [],
     comments: row.comment_count ?? 0,
     description: row.description,

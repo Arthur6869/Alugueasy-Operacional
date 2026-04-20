@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '../lib/supabase';
 import { LoginScreen } from './components/LoginScreen';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -26,7 +27,18 @@ import { TasksProvider, useTasksContext } from '../lib/TasksContext';
 function AppInner() {
   const { workspaces, addWorkspace, deleteWorkspace } = useTasksContext();
 
-  const [currentUser, setCurrentUser] = useState<'Arthur' | 'Yasmim' | 'Alexandre' | 'Nikolas' | null>(null);
+  type TeamMember = 'Arthur' | 'Yasmim' | 'Alexandre' | 'Nikolas';
+  const validMembers: TeamMember[] = ['Arthur', 'Yasmim', 'Alexandre', 'Nikolas'];
+
+  const memberFromEmail = useCallback((email?: string): TeamMember | null => {
+    if (!email) return null;
+    const prefix = email.split('@')[0];
+    const name = prefix.charAt(0).toUpperCase() + prefix.slice(1).toLowerCase();
+    return validMembers.includes(name as TeamMember) ? (name as TeamMember) : null;
+  }, []);
+
+  const [currentUser, setCurrentUser] = useState<TeamMember | null>(null);
+  const [authLoading, setAuthLoading] = useState(true);
   const [activeView, setActiveView] = useState('dashboard');
   const [showNewTaskModal, setShowNewTaskModal] = useState(false);
   const [newTaskInitialDate, setNewTaskInitialDate] = useState<string | undefined>(undefined);
@@ -36,9 +48,32 @@ function AppInner() {
   const [showTaskDetail, setShowTaskDetail] = useState<any>(null);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    return localStorage.getItem('sidebarCollapsed') === 'true';
+  });
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
     return (localStorage.getItem('theme') as 'light' | 'dark') || 'light';
   });
+
+  // Restaura sessão ao recarregar e escuta mudanças de auth
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setCurrentUser(memberFromEmail(session?.user?.email));
+      setAuthLoading(false);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setCurrentUser(memberFromEmail(session?.user?.email));
+    });
+
+    return () => subscription.unsubscribe();
+  }, [memberFromEmail]);
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    setCurrentUser(null);
+    setActiveView('dashboard');
+  };
 
   const handleViewChange = (view: string) => {
     setIsTransitioning(true);
@@ -107,6 +142,20 @@ function AppInner() {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, []);
+
+  if (authLoading) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-[#1E3A5F]">
+        <div className="flex flex-col items-center gap-3 text-white/70">
+          <svg className="animate-spin h-8 w-8" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+          </svg>
+          <span className="text-sm">Verificando sessão...</span>
+        </div>
+      </div>
+    );
+  }
 
   if (!currentUser) {
     return <LoginScreen onLogin={setCurrentUser} />;
@@ -191,7 +240,7 @@ function AppInner() {
         currentUser={currentUser}
         activeView={activeView}
         onViewChange={handleViewChange}
-        onLogout={() => setCurrentUser(null)}
+        onLogout={handleLogout}
         customWorkspaces={workspaces}
         onDeleteWorkspace={async (id) => {
           await deleteWorkspace(id);
@@ -200,12 +249,18 @@ function AppInner() {
         }}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        isCollapsed={sidebarCollapsed}
+        onToggleCollapse={() => setSidebarCollapsed(prev => {
+          const next = !prev;
+          localStorage.setItem('sidebarCollapsed', String(next));
+          return next;
+        })}
       />
       <div className="flex-1 flex flex-col min-w-0 h-full overflow-hidden bg-background">
         <Header
           title={getViewTitle()}
           currentUser={currentUser}
-          notificationCount={3}
+          notificationCount={0}
           onMenuToggle={() => setSidebarOpen(prev => !prev)}
         />
         <div className={`flex-1 h-full overflow-hidden transition-all duration-300 ${isTransitioning ? 'opacity-50' : 'opacity-100'}`}>
