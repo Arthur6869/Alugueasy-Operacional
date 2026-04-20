@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__claude_ai_Supabase__list_projects",
+      "Bash(pnpm add *)",
+      "Bash(npm install *)",
+      "mcp__claude_ai_Supabase__get_project_url",
+      "mcp__claude_ai_Supabase__get_publishable_keys",
+      "Bash(node -e \"require\\('@supabase/supabase-js'\\)\")",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(npm run *)"
+    ]
+  }
+}
