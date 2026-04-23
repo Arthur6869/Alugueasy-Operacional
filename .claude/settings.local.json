@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "mcp__supabase__execute_sql"
+      "mcp__supabase__execute_sql",
+      "Bash(git rm *)",
+      "Bash(git commit -m ' *)",
+      "Bash(del .git\\\\index.lock)",
+      "Bash(git push *)"
+    ],
+    "additionalDirectories": [
+      "c:\\Users\\arthu\\OneDrive\\Documentos\\Alugueasy tarefas\\.git"
     ]
   }
 }
