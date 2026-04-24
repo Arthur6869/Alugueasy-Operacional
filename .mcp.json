@@ -3,6 +3,15 @@
     "supabase": {
       "type": "http",
       "url": "https://mcp.supabase.com/mcp?project_ref=zooirkanfknpzcbbxrxr"
+    },
+    "obsidian": {
+      "command": "npx",
+      "args": ["-y", "mcp-obsidian"],
+      "env": {
+        "OBSIDIAN_API_KEY": "36dcc5d43568c855e97dea10e947aefb936ae9651d7fca14f1e06680b144f8e7",
+        "OBSIDIAN_HOST": "https://127.0.0.1:27124",
+        "OBSIDIAN_VERIFY_SSL": "false"
+      }
     }
   }
 }
