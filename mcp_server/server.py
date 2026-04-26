@@ -30,7 +30,7 @@ from fastmcp import FastMCP, Context
 # Configuração
 # ---------------------------------------------------------------------------
 
-load_dotenv()
+load_dotenv(pathlib.Path(__file__).parent / ".env")
 
 # Caminho raiz do projeto Alugueasy (ajuste para o seu caminho local)
 PROJECT_ROOT = pathlib.Path(
@@ -1819,7 +1819,11 @@ def get_code_metrics() -> str:
     for path in PROJECT_ROOT.rglob("*"):
         if any(f in path.parts for f in FORBIDDEN_DIRS):
             continue
-        if not path.is_file() or not _is_readable(path):
+        try:
+            if not path.is_file() or not _is_readable(path):
+                continue
+            size = path.stat().st_size
+        except OSError:
             continue
 
         ext = path.suffix.lower() or ".other"
@@ -1829,7 +1833,6 @@ def get_code_metrics() -> str:
             continue
 
         lines = content.count("\n") + (1 if content and not content.endswith("\n") else 0)
-        size = path.stat().st_size
 
         if ext not in by_ext:
             by_ext[ext] = {"files": 0, "lines": 0, "size_bytes": 0}
