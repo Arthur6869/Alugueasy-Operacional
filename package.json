@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite"
+    "dev": "vite",
+    "mcp:test": "mcp_server\\.venv\\Scripts\\pytest mcp_server/tests/ -v"
   },
   "dependencies": {
     "react": "18.3.1",

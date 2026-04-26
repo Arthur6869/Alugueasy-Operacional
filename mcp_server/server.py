@@ -14,11 +14,14 @@ Execução:
     # claude mcp add alugueasy-mcp python server.py
 """
 
-import os
+import inspect
 import json
+import logging
+import os
 import pathlib
 import re
 from datetime import timedelta, date
+from functools import wraps
 from dotenv import load_dotenv
 from fastmcp import FastMCP, Context
 
@@ -35,6 +38,47 @@ PROJECT_ROOT = pathlib.Path(
 
 # Token de autenticação — defina em .env como MCP_AUTH_TOKEN=sua_chave_secreta
 MCP_AUTH_TOKEN = os.getenv("MCP_AUTH_TOKEN", "dev-token-change-in-production")
+
+_AUTH_CONFIGURED = (
+    bool(MCP_AUTH_TOKEN) and MCP_AUTH_TOKEN != "dev-token-change-in-production"
+)
+
+if not _AUTH_CONFIGURED:
+    logging.warning(
+        "MCP_AUTH_TOKEN não configurado ou usando valor padrão — "
+        "servidor rodando sem autenticação. Defina MCP_AUTH_TOKEN no .env para produção."
+    )
+
+
+def require_auth(func):
+    """Valida MCP_AUTH_TOKEN antes de executar a tool.
+
+    Se o token não estiver configurado no .env, loga WARNING e executa normalmente.
+    Se estiver configurado e auth_token não bater, retorna erro 401.
+    Injeta o parâmetro `auth_token: str = ""` na assinatura visível ao FastMCP.
+    """
+    sig = inspect.signature(func)
+    if "auth_token" not in sig.parameters:
+        extra = inspect.Parameter(
+            "auth_token",
+            inspect.Parameter.POSITIONAL_OR_KEYWORD,
+            default="",
+            annotation=str,
+        )
+        new_sig = sig.replace(parameters=[*sig.parameters.values(), extra])
+    else:
+        new_sig = sig
+
+    @wraps(func)
+    def wrapper(*args, auth_token: str = "", **kwargs):
+        if _AUTH_CONFIGURED and auth_token != MCP_AUTH_TOKEN:
+            return {"error": "Unauthorized", "code": 401}
+        return func(*args, **kwargs)
+
+    wrapper.__signature__ = new_sig
+    wrapper.__annotations__ = {**func.__annotations__, "auth_token": str}
+    return wrapper
+
 
 # Extensões de código que o agente pode ler
 ALLOWED_EXTENSIONS = {".ts", ".tsx", ".js", ".jsx", ".css", ".json", ".md", ".sql"}
@@ -398,6 +442,7 @@ def _today_str() -> str:
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
+@require_auth
 def ai_triage_task(title: str, description: str = "") -> dict:
     """
     Analisa título e descrição de uma nova tarefa e sugere: assignee ideal,
@@ -510,6 +555,7 @@ def ai_triage_task(title: str, description: str = "") -> dict:
 
 
 @mcp.tool()
+@require_auth
 def generate_subtasks(task_title: str, context: str = "") -> dict:
     """
     Dado o título de uma tarefa grande, quebra em subtarefas executáveis
@@ -577,6 +623,7 @@ def generate_subtasks(task_title: str, context: str = "") -> dict:
 
 
 @mcp.tool()
+@require_auth
 def detect_duplicate_tasks() -> dict:
     """
     Compara todas as tarefas abertas e detecta duplicatas ou tarefas muito
@@ -642,6 +689,7 @@ def detect_duplicate_tasks() -> dict:
 
 
 @mcp.tool()
+@require_auth
 def analyze_team_workload() -> dict:
     """
     Por membro da equipe: tarefas abertas, tarefas atrasadas, distribuição
@@ -721,6 +769,7 @@ def analyze_team_workload() -> dict:
 
 
 @mcp.tool()
+@require_auth
 def suggest_daily_focus(assignee: str) -> dict:
     """
     Para um membro da equipe, retorna as 3–5 tarefas que ele deve focar hoje,
@@ -1134,6 +1183,7 @@ describe('{component_name}', () => {{
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
+@require_auth
 def generate_weekly_report(week_offset: int = 0) -> dict:
     """
     Relatório semanal completo: tarefas concluídas, atrasadas, velocidade
@@ -1211,6 +1261,7 @@ def generate_weekly_report(week_offset: int = 0) -> dict:
 
 
 @mcp.tool()
+@require_auth
 def generate_standup(assignee: str) -> dict:
     """
     Gera pauta de daily standup para um membro baseado nas tarefas reais
@@ -1296,6 +1347,7 @@ def generate_standup(assignee: str) -> dict:
 
 
 @mcp.tool()
+@require_auth
 def predict_sprint_completion(sprint_end_date: str) -> dict:
     """
     Analisa tarefas abertas vs histórico da equipe e prediz quais tarefas
@@ -1373,6 +1425,7 @@ def predict_sprint_completion(sprint_end_date: str) -> dict:
 
 
 @mcp.tool()
+@require_auth
 def detect_bottlenecks() -> dict:
     """
     Identifica tarefas paradas há muitos dias, gargalos por status,
