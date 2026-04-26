@@ -1,9 +1,11 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { X, Calendar, Tag, Users, Folder, Clock, Paperclip, MessageCircle, Activity, Trash2, Copy, Check, ChevronDown, Upload } from 'lucide-react';
 import { TeamAvatar } from './TeamAvatar';
 import { StatusPill } from './StatusPill';
 import { PriorityIndicator } from './PriorityIndicator';
 import { useTasksContext } from '../../lib/TasksContext';
+import { useComments } from '../../hooks/useComments';
+import { useSubtasks } from '../../hooks/useSubtasks';
 
 interface TaskDetailPanelProps {
   task: any;
@@ -16,7 +18,7 @@ const teamMembers = ['Arthur', 'Yasmim', 'Alexandre', 'Nikolas'] as const;
 const groups = ['Operacional', 'Desenvolvimento', 'Financeiro'] as const;
 
 export function TaskDetailPanel({ task, onClose, onUpdate, onDelete }: TaskDetailPanelProps) {
-  const { deleteTask, updateTask } = useTasksContext();
+  const { addTask, deleteTask, updateTask } = useTasksContext();
   const [title, setTitle] = useState(task.name);
   const [description, setDescription] = useState(task.description || '');
   const [isEditingTitle, setIsEditingTitle] = useState(false);
@@ -38,7 +40,12 @@ export function TaskDetailPanel({ task, onClose, onUpdate, onDelete }: TaskDetai
   const [replyText, setReplyText] = useState('');
   const [attachments, setAttachments] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [subtasks, setSubtasks] = useState<{ id: string; title: string; completed: boolean; assignee: typeof teamMembers[number] | null }[]>([]);
+  const {
+    subtasks,
+    addSubtask: persistSubtask,
+    toggleSubtask: persistToggle,
+    fetchSubtasks,
+  } = useSubtasks();
 
   interface CommentItem {
     id: string;
@@ -47,7 +54,22 @@ export function TaskDetailPanel({ task, onClose, onUpdate, onDelete }: TaskDetai
     time: string;
     replies: CommentItem[];
   }
-  const [comments, setComments] = useState<CommentItem[]>([]);
+
+  const { comments: dbComments, addComment: persistComment, fetchComments } = useComments();
+
+  // Converte comentários do banco para o formato de display local (preserva replies que existam)
+  const [localReplies, setLocalReplies] = useState<Record<string, CommentItem[]>>({});
+
+  const comments: CommentItem[] = useMemo(() =>
+    dbComments.map(c => ({
+      id: c.id,
+      user: c.author as typeof teamMembers[number],
+      text: c.content,
+      time: new Date(c.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
+      replies: localReplies[c.id] ?? [],
+    })),
+    [dbComments, localReplies]
+  );
 
   const activities: { id: string; user: typeof teamMembers[number]; action: string; value: string; time: string }[] = [];
 
@@ -70,16 +92,17 @@ export function TaskDetailPanel({ task, onClose, onUpdate, onDelete }: TaskDetai
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleAddComment = () => {
+  // Busca comentários e subtarefas persistidos ao abrir o painel
+  useEffect(() => {
+    if (task.id) {
+      fetchComments(task.id);
+      fetchSubtasks(task.id);
+    }
+  }, [task.id, fetchComments, fetchSubtasks]);
+
+  const handleAddComment = async () => {
     if (!newComment.trim()) return;
-    const comment: CommentItem = {
-      id: Date.now().toString(),
-      user: assignee as typeof teamMembers[number],
-      text: newComment.trim(),
-      time: 'agora',
-      replies: [],
-    };
-    setComments(prev => [...prev, comment]);
+    await persistComment(task.id, assignee, newComment.trim());
     setNewComment('');
     window.dispatchEvent(new CustomEvent('showToast', {
       detail: { type: 'success', message: 'Comentário adicionado!' }
@@ -95,9 +118,10 @@ export function TaskDetailPanel({ task, onClose, onUpdate, onDelete }: TaskDetai
       time: 'agora',
       replies: [],
     };
-    setComments(prev => prev.map(c =>
-      c.id === commentId ? { ...c, replies: [...c.replies, reply] } : c
-    ));
+    setLocalReplies(prev => ({
+      ...prev,
+      [commentId]: [...(prev[commentId] ?? []), reply],
+    }));
     setReplyText('');
     setReplyingTo(null);
     window.dispatchEvent(new CustomEvent('showToast', {
@@ -105,21 +129,14 @@ export function TaskDetailPanel({ task, onClose, onUpdate, onDelete }: TaskDetai
     }));
   };
 
-  const toggleSubtask = (id: string) => {
-    setSubtasks(subtasks.map(s =>
-      s.id === id ? { ...s, completed: !s.completed } : s
-    ));
+  const toggleSubtask = async (id: string) => {
+    const sub = subtasks.find(s => s.id === id);
+    if (sub) await persistToggle(id, !sub.completed);
   };
 
-  const handleAddSubtask = () => {
+  const handleAddSubtask = async () => {
     if (newSubtaskTitle.trim()) {
-      const newSubtask = {
-        id: Date.now().toString(),
-        title: newSubtaskTitle,
-        completed: false,
-        assignee: null,
-      };
-      setSubtasks([...subtasks, newSubtask]);
+      await persistSubtask(task.id, newSubtaskTitle.trim());
       window.dispatchEvent(new CustomEvent('showToast', {
         detail: { type: 'success', message: 'Subtarefa adicionada!' }
       }));
@@ -447,9 +464,6 @@ export function TaskDetailPanel({ task, onClose, onUpdate, onDelete }: TaskDetai
                     >
                       {subtask.title}
                     </span>
-                    {subtask.assignee && (
-                      <TeamAvatar member={subtask.assignee} size="sm" />
-                    )}
                   </div>
                 ))}
 
@@ -725,9 +739,21 @@ export function TaskDetailPanel({ task, onClose, onUpdate, onDelete }: TaskDetai
           </button>
 
           <button
-            onClick={() => {
+            onClick={async () => {
+              const result = await addTask({
+                title: `Cópia de ${task.name}`,
+                description: task.description,
+                group: task.group,
+                assignee: task.assignee,
+                status: task.status,
+                priority: task.priority,
+                due_date: task.due_date,
+                tags: task.tags ?? [],
+              });
               window.dispatchEvent(new CustomEvent('showToast', {
-                detail: { type: 'success', message: 'Tarefa duplicada!' }
+                detail: result
+                  ? { type: 'success', message: 'Tarefa duplicada com sucesso!' }
+                  : { type: 'error', message: 'Erro ao duplicar tarefa. Tente novamente.' },
               }));
             }}
             className="flex items-center gap-2 px-4 py-2 text-[#6B7280] hover:bg-gray-100 rounded-lg transition-all"
