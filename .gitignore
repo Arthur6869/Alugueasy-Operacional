@@ -35,6 +35,7 @@ build/
 mcp_server/.venv/
 mcp_server/__pycache__/
 mcp_server/*.pyc
+mcp_server/backups/*.bak
 **/__pycache__/
 **/*.pyc
 **/*.pyo

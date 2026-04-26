@@ -7,6 +7,8 @@ Execução:
 
 import json
 import os
+import pathlib
+import tempfile
 from unittest.mock import patch
 
 import pytest
@@ -20,7 +22,8 @@ from mcp_server.server import (
     predict_sprint_completion,
     read_file,
     suggest_daily_focus,
-)       
+    write_file,
+)                   
 
 
 # ---------------------------------------------------------------------------
@@ -161,3 +164,81 @@ def test_predict_sprint_sem_supabase(_mock_sb):
     result = predict_sprint_completion(sprint_end_date="2026-12-31")
     assert isinstance(result, dict)
     assert len(str(result)) > 0
+
+
+# ---------------------------------------------------------------------------
+# GRUPO 6 — write_file (escrita segura com backup e diff)
+# ---------------------------------------------------------------------------
+
+# Arquivo temporário dentro de src/ usado pelos testes de escrita
+_TEST_FILE = "src/_mcp_test_write_file.ts"
+_BACKUP_DIR = pathlib.Path(__file__).parent.parent / "backups"
+
+
+def _cleanup_test_file():
+    """Remove o arquivo de teste criado durante os testes."""
+    from mcp_server.server import PROJECT_ROOT
+    target = PROJECT_ROOT / _TEST_FILE
+    if target.exists():
+        target.unlink()
+
+
+def test_write_file_cria_backup():
+    """Confirma que write_file cria um arquivo .bak em mcp_server/backups/ após a escrita."""
+    # Garante que o arquivo já existe para que um backup seja necessário
+    from mcp_server.server import PROJECT_ROOT
+    target = PROJECT_ROOT / _TEST_FILE
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("// conteúdo original\n", encoding="utf-8")
+
+    backups_before = set(_BACKUP_DIR.glob("*.bak"))
+    result = write_file(
+        file_path=_TEST_FILE,
+        new_content="// conteúdo atualizado pelo teste\n",
+        reason="Teste automatizado de backup do write_file",
+    )
+    backups_after = set(_BACKUP_DIR.glob("*.bak"))
+
+    _cleanup_test_file()
+    assert isinstance(result, str)
+    assert len(backups_after - backups_before) == 1, "Esperado exatamente 1 novo arquivo .bak"
+
+
+def test_write_file_rejeita_env():
+    """Confirma que write_file rejeita escrita em .env com erro de segurança."""
+    result = write_file(
+        file_path=".env",
+        new_content="MCP_AUTH_TOKEN=hackeado",
+        reason="tentativa de sobrescrever variáveis de ambiente",
+    )
+    assert isinstance(result, str)
+    assert "Erro de segurança" in result or "Acesso negado" in result or "permitida apenas" in result
+
+
+def test_write_file_rejeita_reason_curto():
+    """Confirma que write_file rejeita reason com menos de 10 caracteres."""
+    result = write_file(
+        file_path=_TEST_FILE,
+        new_content="// qualquer coisa\n",
+        reason="ok",
+    )
+    assert isinstance(result, str)
+    assert "validação" in result or "10 caracteres" in result or "Erro" in result
+
+
+def test_write_file_diff_no_retorno():
+    """Confirma que o retorno de write_file contém marcadores de diff unificado (--- e +++)."""
+    from mcp_server.server import PROJECT_ROOT
+    target = PROJECT_ROOT / _TEST_FILE
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text("// linha original\n", encoding="utf-8")
+
+    result = write_file(
+        file_path=_TEST_FILE,
+        new_content="// linha original\n// linha nova adicionada\n",
+        reason="Teste de geração de diff unificado pelo write_file",
+    )
+    _cleanup_test_file()
+
+    assert isinstance(result, str)
+    assert "---" in result and "+++" in result

@@ -14,13 +14,14 @@ Execução:
     # claude mcp add alugueasy-mcp python server.py
 """
 
+import difflib
 import inspect
 import json
 import logging
 import os
 import pathlib
 import re
-from datetime import timedelta, date
+from datetime import datetime, timedelta, date
 from functools import wraps
 from dotenv import load_dotenv
 from fastmcp import FastMCP, Context
@@ -860,6 +861,194 @@ def suggest_daily_focus(assignee: str) -> dict:
 # ---------------------------------------------------------------------------
 # TOOLS — Código e Sistema
 # ---------------------------------------------------------------------------
+
+# Diretórios onde escrita é permitida (relativo ao PROJECT_ROOT)
+_WRITABLE_ROOTS = ("src", "mcp_server")
+
+# Diretório de backups
+_BACKUP_DIR = pathlib.Path(__file__).parent / "backups"
+_BACKUP_DIR.mkdir(exist_ok=True)
+
+
+@mcp.tool()
+def write_file(file_path: str, new_content: str, reason: str) -> str:
+    """
+    Escreve conteúdo em um arquivo do projeto com backup automático e diff.
+
+    Args:
+        file_path: Caminho relativo ao root do projeto (somente src/ ou mcp_server/)
+        new_content: Conteúdo completo novo do arquivo
+        reason: Motivo da alteração (mínimo 10 caracteres)
+
+    Returns:
+        Relatório com diff unificado, caminho do backup e linhas alteradas.
+        Em caso de erro na escrita, o backup é restaurado automaticamente.
+    """
+    # 1. Validação do motivo
+    if len(reason.strip()) < 10:
+        return "Erro de validação: 'reason' deve ter no mínimo 10 caracteres."
+
+    # 2. Validação e resolução do caminho
+    try:
+        resolved = _validate_path(file_path)
+    except ValueError as e:
+        return f"Erro de segurança: {e}"
+
+    # 3. Restringe escrita a src/ e mcp_server/ apenas
+    relative_parts = resolved.relative_to(PROJECT_ROOT).parts
+    if not relative_parts or relative_parts[0] not in _WRITABLE_ROOTS:
+        allowed = ", ".join(f"'{r}/'" for r in _WRITABLE_ROOTS)
+        return (
+            f"Erro de segurança: escrita permitida apenas em {allowed}. "
+            f"Caminho '{file_path}' está fora dessas áreas."
+        )
+
+    # 4. Lê conteúdo atual (se o arquivo existir)
+    original_content = ""
+    if resolved.is_file():
+        try:
+            original_content = resolved.read_text(encoding="utf-8", errors="replace")
+        except Exception as e:
+            return f"Erro ao ler arquivo original: {e}"
+
+    # 5. Gera diff unificado
+    original_lines = original_content.splitlines(keepends=True)
+    new_lines = new_content.splitlines(keepends=True)
+    diff_lines = list(difflib.unified_diff(
+        original_lines,
+        new_lines,
+        fromfile=f"a/{file_path}",
+        tofile=f"b/{file_path}",
+    ))
+    diff_text = "".join(diff_lines) if diff_lines else "(sem alterações de conteúdo)"
+
+    changed_lines = sum(1 for l in diff_lines if l.startswith(("+", "-")) and not l.startswith(("+++", "---")))
+
+    # 6. Salva backup
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_path = _BACKUP_DIR / f"{timestamp}_{resolved.name}.bak"
+    if original_content:
+        try:
+            backup_path.write_text(original_content, encoding="utf-8")
+        except Exception as e:
+            return f"Erro ao criar backup: {e}"
+
+    # 7. Escreve novo conteúdo (com restauração automática em caso de falha)
+    try:
+        resolved.parent.mkdir(parents=True, exist_ok=True)
+        resolved.write_text(new_content, encoding="utf-8")
+    except Exception as e:
+        if original_content and backup_path.exists():
+            try:
+                resolved.write_text(original_content, encoding="utf-8")
+            except Exception:
+                pass
+        return f"Erro ao escrever arquivo (backup restaurado): {e}"
+
+    # 8. Relatório
+    _ARQUIVOS_CRITICOS = [
+        "src/app/App.tsx",
+        "src/lib/supabase.ts",
+        "mcp_server/server.py",
+        "mcp_server/start.py",
+        "mcp_server/tests/test_tools.py",
+    ]
+    critical_warning = (
+        "\n⚠️ ARQUIVO CRÍTICO — confirme a aplicação revisando o diff acima antes de prosseguir."
+        if file_path in _ARQUIVOS_CRITICOS else ""
+    )
+
+    backup_info = str(backup_path) if original_content else "(arquivo novo — sem backup necessário)"
+    return (
+        f"✅ Arquivo atualizado: {file_path}\n"
+        f"📋 Motivo: {reason}\n"
+        f"📦 Backup: {backup_info}\n"
+        f"📊 Linhas alteradas: {changed_lines}\n\n"
+        f"--- Diff ---\n{diff_text}"
+        f"{critical_warning}"
+    )
+
+
+@mcp.tool()
+def list_backups() -> str:
+    """
+    Lista todos os backups criados pela tool write_file.
+
+    Returns:
+        JSON com nome do arquivo, data de criação e tamanho de cada backup.
+    """
+    baks = sorted(_BACKUP_DIR.glob("*.bak"), key=lambda p: p.stat().st_mtime, reverse=True)
+    entries = []
+    for bak in baks:
+        stat = bak.stat()
+        entries.append({
+            "filename": bak.name,
+            "size_bytes": stat.st_size,
+            "created_at": datetime.fromtimestamp(stat.st_mtime).strftime("%Y-%m-%d %H:%M:%S"),
+        })
+    return json.dumps({
+        "total_backups": len(entries),
+        "backup_dir": str(_BACKUP_DIR),
+        "backups": entries,
+    }, indent=2, ensure_ascii=False)
+
+
+@mcp.tool()
+def restore_backup(backup_filename: str) -> str:
+    """
+    Restaura um arquivo a partir de um backup salvo em mcp_server/backups/.
+
+    Args:
+        backup_filename: Nome do arquivo .bak (ex: 20260425_143022_App.tsx.bak)
+
+    Returns:
+        Confirmação com caminho do arquivo restaurado, ou mensagem de erro.
+    """
+    # 1. Valida existência do backup
+    backup_path = _BACKUP_DIR / backup_filename
+    if not backup_path.exists():
+        return f"Erro: backup '{backup_filename}' não encontrado em {_BACKUP_DIR}."
+    if not backup_filename.endswith(".bak"):
+        return "Erro: o arquivo deve ter extensão .bak."
+
+    # 2. Extrai o nome original: formato {timestamp}_{original_name}.bak
+    # Ex: 20260425_143022_App.tsx.bak → App.tsx
+    parts = backup_filename[:-4].split("_", 2)  # remove .bak, split em até 3 partes
+    if len(parts) < 3:
+        return f"Erro: nome de backup inválido '{backup_filename}'. Formato esperado: YYYYMMDD_HHMMSS_arquivo.ext.bak"
+    original_name = parts[2]  # tudo após timestamp_hora_
+
+    # 3. Localiza o arquivo original em src/ ou mcp_server/
+    target_path: pathlib.Path | None = None
+    for root_name in _WRITABLE_ROOTS:
+        candidate = PROJECT_ROOT / root_name
+        for found in candidate.rglob(original_name):
+            target_path = found
+            break
+        if target_path:
+            break
+
+    if target_path is None:
+        return (
+            f"Erro: arquivo original '{original_name}' não encontrado em "
+            f"{[str(PROJECT_ROOT / r) for r in _WRITABLE_ROOTS]}. "
+            "Restauração cancelada — verifique se o arquivo ainda existe no projeto."
+        )
+
+    # 4. Lê o backup e sobrescreve o original
+    try:
+        backup_content = backup_path.read_text(encoding="utf-8", errors="replace")
+        target_path.write_text(backup_content, encoding="utf-8")
+    except Exception as e:
+        return f"Erro ao restaurar backup: {e}"
+
+    return (
+        f"✅ Restauração concluída.\n"
+        f"📦 Backup usado: {backup_filename}\n"
+        f"📄 Arquivo restaurado: {target_path.relative_to(PROJECT_ROOT)}\n"
+        f"📊 Tamanho restaurado: {len(backup_content)} bytes"
+    )
+
 
 @mcp.tool()
 def create_feature_end_to_end(feature_description: str, assignee: str = "Arthur") -> dict:
