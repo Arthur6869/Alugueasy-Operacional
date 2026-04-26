@@ -85,7 +85,14 @@ def require_auth(func):
 ALLOWED_EXTENSIONS = {".ts", ".tsx", ".js", ".jsx", ".css", ".json", ".md", ".sql"}
 
 # Diretórios proibidos (nunca expõe ao agente)
-FORBIDDEN_DIRS = {".git", "node_modules", "dist", "build", ".env"}
+FORBIDDEN_DIRS = {
+    ".git", "node_modules", "dist", "build", ".env",
+    ".venv",                      # ambiente Python
+    "Sistema Alugueasy Tarefas",  # vault Obsidian
+    "__pycache__",                # cache Python
+    ".obsidian",                  # config Obsidian
+    "backups",                    # backups do MCP
+}
 
 # ---------------------------------------------------------------------------
 # Inicialização do servidor FastMCP
