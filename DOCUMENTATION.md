@@ -8,6 +8,23 @@
 5. [Sistema de Temas](#sistema-de-temas)
 6. [Comunicação entre Componentes](#comunicação-entre-componentes)
 7. [Melhorias e Próximos Passos](#melhorias-e-próximos-passos)
+8. [MCP Server (IA integrada ao codebase)](#mcp-server)
+
+---
+
+## 🤖 MCP Server
+
+O projeto possui um servidor MCP local que permite ao Claude Code e outros agentes de IA lerem e analisarem o codebase diretamente, sem necessidade de colar código no chat.
+
+**Documentação completa:** [`MCP_SERVER.md`](MCP_SERVER.md)
+
+### Resumo rápido
+- **Localização:** `mcp_server/server.py`
+- **Framework:** FastMCP 3.2.4 (Python)
+- **Venv:** `mcp_server/.venv/Scripts/python.exe`
+- **Registro:** `.mcp.json` na raiz (não vai para o git)
+- **Tools:** `read_file`, `list_components`, `list_project_structure`, `get_db_schema`, `get_project_context`, `suggest_improvement`
+- **Prompts:** `review_component`, `suggest_feature`, `audit_security`, `improve_ux`
 
 ---
 
@@ -828,6 +845,6 @@ Projeto interno - AlugEasy Team
 
 ---
 
-**Última atualização**: 18 de Abril de 2026  
-**Versão**: 0.0.1  
+**Última atualização**: 24 de Abril de 2026  
+**Versão**: 0.0.2  
 **Desenvolvido por**: Arthur, Yasmim, Alexandre, Nikolas
