@@ -17,10 +17,12 @@ from mcp_server.server import (
     analyze_team_workload,
     detect_duplicate_tasks,
     generate_weekly_report,
+    get_code_metrics,
     get_db_schema,
     list_components,
     predict_sprint_completion,
     read_file,
+    search_in_files,
     suggest_daily_focus,
     write_file,
 )                   
@@ -242,3 +244,69 @@ def test_write_file_diff_no_retorno():
 
     assert isinstance(result, str)
     assert "---" in result and "+++" in result
+
+
+# ---------------------------------------------------------------------------
+# GRUPO 7 — search_in_files (busca regex no codebase)
+# ---------------------------------------------------------------------------
+
+
+def test_search_in_files_encontra_resultado():
+    """Confirma que buscar 'import' em src/ retorna pelo menos uma ocorrência."""
+    result = search_in_files(pattern="import", directory="src")
+    data = json.loads(result)
+    assert "total_matches" in data
+    assert "results" in data
+    assert data["total_matches"] > 0
+    assert isinstance(data["results"], list)
+    assert len(data["results"]) > 0
+
+
+def test_search_in_files_pattern_invalido():
+    """Confirma que pattern com mais de 200 caracteres retorna erro de validação."""
+    long_pattern = "a" * 201
+    result = search_in_files(pattern=long_pattern)
+    data = json.loads(result)
+    assert "error" in data
+    assert "200" in data["error"] or "validação" in data["error"]
+
+
+def test_search_in_files_sem_resultado():
+    """Confirma que busca por string inexistente retorna total_matches == 0 e lista vazia."""
+    result = search_in_files(pattern="XYZXYZXYZ_nao_existe_999")
+    data = json.loads(result)
+    assert data["total_matches"] == 0
+    assert data["results"] == []
+
+
+# ---------------------------------------------------------------------------
+# GRUPO 8 — get_code_metrics (métricas do codebase)
+# ---------------------------------------------------------------------------
+
+
+def test_get_code_metrics_retorna_json_valido():
+    """Confirma que get_code_metrics retorna JSON válido com todas as chaves esperadas."""
+    result = get_code_metrics()
+    data = json.loads(result)
+    for key in ("total_files", "by_extension", "largest_files", "total_lines", "typescript_ratio", "summary"):
+        assert key in data, f"Chave ausente no retorno: '{key}'"
+    assert isinstance(data["by_extension"], dict)
+    assert isinstance(data["largest_files"], list)
+    assert isinstance(data["summary"], str)
+
+
+def test_get_code_metrics_total_positivo():
+    """Confirma que total_files e total_lines são maiores que zero."""
+    result = get_code_metrics()
+    data = json.loads(result)
+    assert data["total_files"] > 0, "total_files deve ser > 0"
+    assert data["total_lines"] > 0, "total_lines deve ser > 0"
+
+
+def test_get_code_metrics_typescript_ratio():
+    """Confirma que typescript_ratio é um número entre 0 e 100."""
+    result = get_code_metrics()
+    data = json.loads(result)
+    ratio = data["typescript_ratio"]
+    assert isinstance(ratio, (int, float)), "typescript_ratio deve ser numérico"
+    assert 0 <= ratio <= 100, f"typescript_ratio fora do intervalo [0, 100]: {ratio}"

@@ -1701,6 +1701,177 @@ def detect_bottlenecks() -> dict:
 
 
 # ---------------------------------------------------------------------------
+# TOOLS — Busca e Análise de Código
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def search_in_files(
+    pattern: str,
+    directory: str = "",
+    file_extension: str = "",
+    max_results: int = 50,
+) -> str:
+    """
+    Busca por padrão regex em todos os arquivos do projeto.
+
+    Args:
+        pattern: Expressão regular para buscar (ex: "useState\\(", "supabase\\.")
+        directory: Subdiretório para limitar a busca (vazio = projeto inteiro)
+        file_extension: Filtrar por extensão (ex: ".tsx", ".ts") — vazio = todas permitidas
+        max_results: Limite de resultados (padrão 50, máximo 200)
+
+    Returns:
+        JSON com total_matches, files_searched e lista de resultados com contexto.
+    """
+    import time
+
+    # Validações de entrada
+    if len(pattern) > 200:
+        return json.dumps({"error": "Erro de validação: pattern excede 200 caracteres."})
+
+    max_results = min(max_results, 200)
+
+    # Compila o regex com timeout de segurança contra ReDoS
+    try:
+        t0 = time.monotonic()
+        compiled = re.compile(pattern)
+        elapsed = time.monotonic() - t0
+        if elapsed > 1.0:
+            return json.dumps({"error": "Erro de segurança: pattern demorou demais para compilar (possível ReDoS)."})
+    except re.error as e:
+        return json.dumps({"error": f"Erro de regex inválido: {e}"})
+
+    # Resolve diretório base
+    try:
+        base = _validate_path(directory) if directory else PROJECT_ROOT
+    except ValueError as e:
+        return json.dumps({"error": f"Erro de segurança: {e}"})
+
+    # Normaliza extensão
+    ext_filter = file_extension.lower() if file_extension else ""
+    if ext_filter and not ext_filter.startswith("."):
+        ext_filter = f".{ext_filter}"
+
+    results = []
+    files_searched = 0
+
+    for path in base.rglob("*"):
+        if len(results) >= max_results:
+            break
+
+        # Pula diretórios proibidos
+        if any(f in path.parts for f in FORBIDDEN_DIRS):
+            continue
+        if not path.is_file():
+            continue
+        if not _is_readable(path):
+            continue
+        if ext_filter and path.suffix.lower() != ext_filter:
+            continue
+
+        try:
+            lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+        except Exception:
+            continue
+
+        files_searched += 1
+
+        for i, line in enumerate(lines):
+            if len(results) >= max_results:
+                break
+            if compiled.search(line):
+                # Contexto: 2 linhas antes e depois
+                ctx_start = max(0, i - 2)
+                ctx_end = min(len(lines), i + 3)
+                context = [
+                    {"line_number": ctx_start + j + 1, "content": lines[ctx_start + j]}
+                    for j in range(ctx_end - ctx_start)
+                    if ctx_start + j != i
+                ]
+                results.append({
+                    "file": str(path.relative_to(PROJECT_ROOT)),
+                    "line_number": i + 1,
+                    "line_content": line,
+                    "context": context,
+                })
+
+    return json.dumps({
+        "pattern": pattern,
+        "total_matches": len(results),
+        "files_searched": files_searched,
+        "max_results": max_results,
+        "results": results,
+    }, indent=2, ensure_ascii=False)
+
+
+@mcp.tool()
+def get_code_metrics() -> str:
+    """
+    Analisa o codebase e retorna métricas detalhadas do projeto.
+
+    Returns:
+        JSON com total_files, by_extension, largest_files, total_lines,
+        total_size_bytes, typescript_ratio e summary formatado para README.
+    """
+    by_ext: dict[str, dict] = {}
+    file_line_counts: list[dict] = []
+
+    for path in PROJECT_ROOT.rglob("*"):
+        if any(f in path.parts for f in FORBIDDEN_DIRS):
+            continue
+        if not path.is_file() or not _is_readable(path):
+            continue
+
+        ext = path.suffix.lower() or ".other"
+        try:
+            content = path.read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            continue
+
+        lines = content.count("\n") + (1 if content and not content.endswith("\n") else 0)
+        size = path.stat().st_size
+
+        if ext not in by_ext:
+            by_ext[ext] = {"files": 0, "lines": 0, "size_bytes": 0}
+        by_ext[ext]["files"] += 1
+        by_ext[ext]["lines"] += lines
+        by_ext[ext]["size_bytes"] += size
+
+        file_line_counts.append({
+            "path": str(path.relative_to(PROJECT_ROOT)),
+            "lines": lines,
+            "size_bytes": size,
+        })
+
+    total_files = sum(v["files"] for v in by_ext.values())
+    total_lines = sum(v["lines"] for v in by_ext.values())
+    total_size = sum(v["size_bytes"] for v in by_ext.values())
+
+    ts_lines = sum(
+        by_ext[e]["lines"] for e in (".ts", ".tsx") if e in by_ext
+    )
+    typescript_ratio = round(ts_lines / total_lines * 100, 1) if total_lines else 0.0
+
+    largest_files = sorted(file_line_counts, key=lambda f: f["lines"], reverse=True)[:10]
+
+    summary = (
+        f"{total_files} arquivos · "
+        f"{total_lines:,} linhas · "
+        f"{typescript_ratio}% TypeScript"
+    ).replace(",", ".")
+
+    return json.dumps({
+        "total_files": total_files,
+        "total_lines": total_lines,
+        "total_size_bytes": total_size,
+        "typescript_ratio": typescript_ratio,
+        "by_extension": by_ext,
+        "largest_files": largest_files,
+        "summary": summary,
+    }, indent=2, ensure_ascii=False)
+
+
+# ---------------------------------------------------------------------------
 # TOOLS — Automação e Linguagem Natural
 # ---------------------------------------------------------------------------
 
