@@ -55,23 +55,23 @@ export function ReportsView() {
 
   return (
     <div className="h-full overflow-y-auto custom-scrollbar bg-background">
-      <div className="p-8 pb-12 min-h-full">
+      <div className="p-4 md:p-8 pb-12 min-h-full">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold text-foreground">Relatórios e Análises</h1>
+          <h1 className="text-xl md:text-2xl font-bold text-foreground">Relatórios e Análises</h1>
           <p className="text-sm text-muted-foreground">Visão geral do desempenho da equipe</p>
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 mb-6">
           {[
             { id: 'stat-total', label: 'Total de Tarefas', value: String(total), color: '#4A9EDB' },
             { id: 'stat-taxa', label: 'Taxa de Conclusão', value: `${taxa}%`, color: '#22C55E' },
             { id: 'stat-media', label: 'Média por Membro', value: mediaPorMembro, color: '#F59E0B' },
             { id: 'stat-criticas', label: 'Tarefas Críticas', value: String(criticas), color: '#EF4444' },
           ].map((stat) => (
-            <div key={stat.id} className="bg-card border border-border rounded-xl p-5 shadow-sm">
-              <p className="text-sm text-muted-foreground mb-2">{stat.label}</p>
-              <p className="text-3xl font-bold" style={{ color: stat.color }}>
+            <div key={stat.id} className="bg-card border border-border rounded-xl p-4 md:p-5 shadow-sm">
+              <p className="text-xs md:text-sm text-muted-foreground mb-2">{stat.label}</p>
+              <p className="text-xl md:text-3xl font-bold" style={{ color: stat.color }}>
                 {stat.value}
               </p>
             </div>
@@ -79,10 +79,10 @@ export function ReportsView() {
         </div>
 
         {/* Charts Row 1 */}
-        <div className="grid grid-cols-2 gap-6 mb-6">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 mb-6">
           {/* Status Distribution */}
-          <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-            <h3 className="text-lg font-bold text-foreground mb-4">Distribuição por Status</h3>
+          <div className="bg-card border border-border rounded-xl p-4 md:p-6 shadow-sm">
+            <h3 className="text-base md:text-lg font-bold text-foreground mb-4">Distribuição por Status</h3>
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
@@ -105,8 +105,8 @@ export function ReportsView() {
           </div>
 
           {/* Member Performance */}
-          <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-            <h3 className="text-lg font-bold text-foreground mb-4">Desempenho por Membro</h3>
+          <div className="bg-card border border-border rounded-xl p-4 md:p-6 shadow-sm">
+            <h3 className="text-base md:text-lg font-bold text-foreground mb-4">Desempenho por Membro</h3>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={memberData}>
                 <CartesianGrid strokeDasharray="3 3" />
@@ -122,8 +122,8 @@ export function ReportsView() {
         </div>
 
         {/* Timeline Chart */}
-        <div className="bg-card border border-border rounded-xl p-6 shadow-sm">
-          <h3 className="text-lg font-bold text-foreground mb-4">Evolução Semanal</h3>
+        <div className="bg-card border border-border rounded-xl p-4 md:p-6 shadow-sm">
+          <h3 className="text-base md:text-lg font-bold text-foreground mb-4">Evolução Semanal</h3>
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={timelineData}>
               <CartesianGrid strokeDasharray="3 3" />

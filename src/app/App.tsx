@@ -43,6 +43,7 @@ function AppInner() {
   const [showNewTaskModal, setShowNewTaskModal] = useState(false);
   const [newTaskInitialDate, setNewTaskInitialDate] = useState<string | undefined>(undefined);
   const [newTaskInitialGroup, setNewTaskInitialGroup] = useState<string | undefined>(undefined);
+  const [newTaskInitialStatus, setNewTaskInitialStatus] = useState<string | undefined>(undefined);
   const [showNewWorkspaceModal, setShowNewWorkspaceModal] = useState(false);
   const [showSearchModal, setShowSearchModal] = useState(false);
   const [showTaskDetail, setShowTaskDetail] = useState<any>(null);
@@ -95,7 +96,7 @@ function AppInner() {
 
   useEffect(() => {
     const handleChangeViewEvent = (e: any) => handleViewChange(e.detail);
-    const handleOpenNewTask = () => { setNewTaskInitialDate(undefined); setNewTaskInitialGroup(undefined); setShowNewTaskModal(true); };
+    const handleOpenNewTask = (e: any) => { setNewTaskInitialDate(undefined); setNewTaskInitialGroup(undefined); setNewTaskInitialStatus(e?.detail?.initialStatus); setShowNewTaskModal(true); };
     const handleOpenNewTaskWithDate = (e: any) => { setNewTaskInitialDate(e.detail); setNewTaskInitialGroup(undefined); setShowNewTaskModal(true); };
     const handleOpenNewTaskWithGroup = (e: any) => { setNewTaskInitialGroup(e.detail); setNewTaskInitialDate(undefined); setShowNewTaskModal(true); };
     const handleOpenNewWorkspace = () => setShowNewWorkspaceModal(true);
@@ -270,7 +271,7 @@ function AppInner() {
 
       {showNewTaskModal && (
         <NewTaskModal
-          onClose={() => { setShowNewTaskModal(false); setNewTaskInitialDate(undefined); setNewTaskInitialGroup(undefined); }}
+          onClose={() => { setShowNewTaskModal(false); setNewTaskInitialDate(undefined); setNewTaskInitialGroup(undefined); setNewTaskInitialStatus(undefined); }}
           onSave={(task) => {
             toast.success('Tarefa criada com sucesso!', {
               description: `"${task.title}" foi adicionada ao grupo ${task.group}`,
@@ -279,9 +280,11 @@ function AppInner() {
             setShowNewTaskModal(false);
             setNewTaskInitialDate(undefined);
             setNewTaskInitialGroup(undefined);
+            setNewTaskInitialStatus(undefined);
           }}
           initialDate={newTaskInitialDate}
           initialGroup={newTaskInitialGroup}
+          initialStatus={newTaskInitialStatus}
         />
       )}
 

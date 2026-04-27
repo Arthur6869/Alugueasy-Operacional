@@ -8,6 +8,7 @@ interface NewTaskModalProps {
   onSave: (task: any) => void;
   initialDate?: string;
   initialGroup?: string;
+  initialStatus?: string;
 }
 
 const teamMembers = ['Arthur', 'Yasmim', 'Alexandre', 'Nikolas'] as const;
@@ -15,14 +16,15 @@ const statuses = ['Pendente', 'Em Andamento', 'Revisão', 'Concluído'] as const
 const priorities = ['Baixa', 'Média', 'Alta', 'Crítica'] as const;
 const groups = ['Operacional', 'Desenvolvimento', 'Financeiro'] as const;
 
-export function NewTaskModal({ onClose, onSave, initialDate, initialGroup }: NewTaskModalProps) {
+export function NewTaskModal({ onClose, onSave, initialDate, initialGroup, initialStatus }: NewTaskModalProps) {
   const { addTask } = useTasksContext();
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const validGroup = groups.find(g => g === initialGroup) ?? 'Operacional';
   const [group, setGroup] = useState<typeof groups[number]>(validGroup);
   const [assignee, setAssignee] = useState<typeof teamMembers[number]>('Arthur');
-  const [status, setStatus] = useState<typeof statuses[number]>('Pendente');
+  const validStatus = statuses.find(s => s === initialStatus) ?? 'Pendente';
+  const [status, setStatus] = useState<typeof statuses[number]>(validStatus);
   const [priority, setPriority] = useState<typeof priorities[number]>('Média');
   const [date, setDate] = useState(initialDate || '');
   const [tags, setTags] = useState('');

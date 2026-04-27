@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { TeamAvatar } from './TeamAvatar';
 import { useTasksContext, TaskStatus } from '../../lib/TasksContext';
 
@@ -30,7 +30,7 @@ export function KanbanBoard() {
 
   const handleAddCard = (status: TaskStatus) => {
     if (newCardTitle.trim()) {
-      window.dispatchEvent(new CustomEvent('openNewTask'));
+      window.dispatchEvent(new CustomEvent('openNewTask', { detail: { initialStatus: status } }));
       setNewCardTitle('');
       setShowAddCard(null);
     }
@@ -48,9 +48,9 @@ export function KanbanBoard() {
   }
 
   return (
-    <div className="h-full overflow-hidden bg-background">
-      <div className="h-full overflow-auto custom-scrollbar p-4 md:p-8">
-        <div className="flex gap-4 pb-4 min-w-max">
+    <div className="h-full overflow-hidden bg-background flex flex-col">
+      <div className="flex-1 overflow-x-auto scroll-smooth custom-scrollbar p-4 md:p-8">
+        <div className="flex gap-4 pb-4 w-max min-w-full">
           {columns.map((column) => {
             const columnTasks = tasks.filter(t => t.status === column.id);
             return (
@@ -104,7 +104,7 @@ export function KanbanBoard() {
 
                 {/* Add Card Button */}
                 <button
-                  onClick={() => window.dispatchEvent(new CustomEvent('openNewTask'))}
+                  onClick={() => window.dispatchEvent(new CustomEvent('openNewTask', { detail: { initialStatus: column.id } }))}
                   className="w-full py-3 border-2 border-dashed border-border rounded-xl hover:border-[#4A9EDB] hover:bg-blue-50/50 dark:hover:bg-blue-950/20 transition-all flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-[#4A9EDB]"
                 >
                   <Plus size={16} />
@@ -115,6 +115,13 @@ export function KanbanBoard() {
             );
           })}
         </div>
+      </div>
+
+      {/* Indicador de scroll — visível apenas no mobile */}
+      <div className="flex items-center justify-center gap-2 py-2 sm:hidden">
+        <ChevronLeft size={14} className="text-gray-400" />
+        <span className="text-xs text-gray-400">Deslize para ver mais colunas</span>
+        <ChevronRight size={14} className="text-gray-400" />
       </div>
     </div>
   );

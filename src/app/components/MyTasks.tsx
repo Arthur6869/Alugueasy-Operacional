@@ -163,6 +163,16 @@ export function MyTasks({ currentUser }: MyTasksProps) {
         </div>
 
       </div>
+
+      {/* FAB mobile — visível apenas em telas pequenas */}
+      <button
+        className="fixed bottom-6 right-6 z-50 flex items-center justify-center w-14 h-14 rounded-full shadow-lg sm:hidden transition-transform active:scale-95"
+        style={{ backgroundColor: '#1E3A5F' }}
+        onClick={() => window.dispatchEvent(new CustomEvent('openNewTask'))}
+        aria-label="Nova tarefa"
+      >
+        <Plus size={24} color="white" />
+      </button>
     </div>
   );
 }
