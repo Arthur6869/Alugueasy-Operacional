@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, ReactNode } from 'react';
+import { supabase } from './supabase';
 import { useNotifications, Notification } from '../hooks/useNotifications';
 
 interface NotificationsContextValue {
@@ -21,18 +22,36 @@ interface NotificationsContextValue {
 const NotificationsContext = createContext<NotificationsContextValue | null>(null);
 
 export function NotificationsProvider({ currentUser, children }: { currentUser: string; children: ReactNode }) {
-  const hook = useNotifications();
+  const { fetchNotifications, addFromRealtime, ...rest } = useNotifications();
 
   useEffect(() => {
     if (!currentUser) return;
-    hook.fetchNotifications(currentUser);
-    const interval = setInterval(() => hook.fetchNotifications(currentUser), 120_000);
-    return () => clearInterval(interval);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentUser]);
+
+    // Carregamento inicial
+    fetchNotifications(currentUser);
+
+    // Realtime substitui o polling — recebe novos INSERTs em tempo real
+    const channel = supabase
+      .channel(`notifications-${currentUser}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+          filter: `user_name=eq.${currentUser}`,
+        },
+        (payload) => {
+          addFromRealtime(payload.new as Notification);
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [currentUser, fetchNotifications, addFromRealtime]);
 
   return (
-    <NotificationsContext.Provider value={{ ...hook, currentUser }}>
+    <NotificationsContext.Provider value={{ ...rest, fetchNotifications, currentUser }}>
       {children}
     </NotificationsContext.Provider>
   );

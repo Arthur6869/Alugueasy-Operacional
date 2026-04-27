@@ -3,6 +3,7 @@ import { AlugEasyLogo } from './AlugEasyLogo';
 import { TeamAvatar } from './TeamAvatar';
 import { WorkspaceContextMenu } from './WorkspaceContextMenu';
 import { useNotificationsContext } from '../../lib/NotificationsContext';
+import { usePresence } from '../../hooks/usePresence';
 import {
   Home, CheckSquare, Calendar, Bell, Folder, Code, DollarSign, Plus,
   LayoutGrid, CalendarDays, BarChart3, FileText, Settings, LogOut,
@@ -31,6 +32,7 @@ export function Sidebar({
 }: SidebarProps) {
   const [contextMenu, setContextMenu] = useState<{ workspace: any; x: number; y: number } | null>(null);
   const { unreadCount } = useNotificationsContext();
+  const { onlineUsers } = usePresence(currentUser, activeView);
 
   const getIconComponent = (iconId: string): LucideIcon => {
     const iconMap: Record<string, LucideIcon> = {
@@ -265,6 +267,32 @@ export function Sidebar({
 
         {/* User Section */}
         <div className="border-t border-[#2A4F7C] p-2 space-y-1">
+          {/* Indicador de presença — quem está online */}
+          {onlineUsers.length > 0 && (
+            isCollapsed ? (
+              <div className="flex flex-col items-center gap-1 pt-1 pb-2">
+                {onlineUsers.map(user => (
+                  <div key={user.user_name} className="relative" title={`${user.user_name} — online`}>
+                    <TeamAvatar member={user.user_name as any} size="sm" />
+                    <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-green-500 ring-1 ring-[#1E3A5F]" />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="px-3 pt-2 pb-1">
+                <p className="text-[10px] text-gray-400 uppercase tracking-wider mb-1.5">Online agora</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {onlineUsers.map(user => (
+                    <div key={user.user_name} className="relative" title={`${user.user_name} — ${user.current_view}`}>
+                      <TeamAvatar member={user.user_name as any} size="sm" />
+                      <span className="absolute bottom-0 right-0 w-2 h-2 rounded-full bg-green-500 ring-1 ring-[#1E3A5F]" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )
+          )}
+
           {isCollapsed ? (
             <div className="flex flex-col items-center gap-1 py-1">
               <TeamAvatar member={currentUser} size="md" />

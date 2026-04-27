@@ -177,6 +177,37 @@ export function TasksProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  // Realtime — sincroniza mudanças feitas por outros membros sem refresh
+  useEffect(() => {
+    const channel = supabase
+      .channel('tasks-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'tasks' },
+        (payload) => {
+          if (payload.eventType === 'INSERT') {
+            const newTask = rowToTask(payload.new);
+            setTasks(prev =>
+              prev.find(t => t.id === newTask.id) ? prev : [newTask, ...prev]
+            );
+          }
+          if (payload.eventType === 'UPDATE') {
+            setTasks(prev => prev.map(t => {
+              if (t.id !== payload.new.id) return t;
+              const updated = rowToTask(payload.new);
+              return { ...updated, comments: payload.new.comment_count ?? t.comments };
+            }));
+          }
+          if (payload.eventType === 'DELETE') {
+            setTasks(prev => prev.filter(t => t.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
+
   // Verifica prazos vencendo/vencidos uma vez após o carregamento inicial
   useEffect(() => {
     if (loading || dueSoonChecked.current || tasks.length === 0) return;

@@ -78,5 +78,11 @@ export function useNotifications() {
     }, ...prev]);
   }, []);
 
-  return { notifications, unreadCount, loading, fetchNotifications, markAsRead, markAllAsRead, createNotification };
+  const addFromRealtime = useCallback((notif: Notification) => {
+    setNotifications(prev =>
+      prev.find(n => n.id === notif.id) ? prev : [notif, ...prev]
+    );
+  }, []);
+
+  return { notifications, unreadCount, loading, fetchNotifications, markAsRead, markAllAsRead, createNotification, addFromRealtime };
 }
