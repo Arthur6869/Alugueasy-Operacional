@@ -19,6 +19,7 @@ import { SearchModal } from './components/SearchModal';
 import { TaskDetailPanel } from './components/TaskDetailPanel';
 import { Toaster, toast } from 'sonner';
 import { TasksProvider, useTasksContext } from '../lib/TasksContext';
+import { NotificationsProvider } from '../lib/NotificationsContext';
 
 // ---------------------------------------------------------------
 // Inner app — usa o contexto de tarefas
@@ -236,6 +237,7 @@ function AppInner() {
   };
 
   return (
+    <NotificationsProvider currentUser={currentUser}>
     <div className="h-screen flex overflow-hidden bg-background text-foreground">
       <Sidebar
         currentUser={currentUser}
@@ -318,6 +320,7 @@ function AppInner() {
 
       <Toaster position="top-right" richColors />
     </div>
+    </NotificationsProvider>
   );
 }
 

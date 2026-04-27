@@ -52,6 +52,25 @@ export interface NewTaskPayload {
 // Helpers
 // ---------------------------------------------------------------
 
+const TEAM_MEMBERS = ['Arthur', 'Yasmim', 'Alexandre', 'Nikolas'];
+
+async function createNotifDirect(
+  userName: string,
+  type: string,
+  title: string,
+  message: string,
+  taskId?: string,
+) {
+  await supabase.from('notifications').insert({
+    user_name: userName,
+    type,
+    title,
+    message,
+    task_id: taskId ?? null,
+  });
+  // Errors intentionally ignored — notifications are non-critical
+}
+
 function formatDisplayDate(isoDate?: string): string {
   if (!isoDate) return 'Sem prazo';
   try {
@@ -129,6 +148,9 @@ export function TasksProvider({ children }: { children: ReactNode }) {
   const tasksRef = useRef<Task[]>([]);
   useEffect(() => { tasksRef.current = tasks; }, [tasks]);
 
+  // Flag para verificar prazos apenas uma vez por carregamento
+  const dueSoonChecked = useRef(false);
+
   const { logActivity } = useActivityLog();
 
   const fetchAll = useCallback(async () => {
@@ -155,6 +177,36 @@ export function TasksProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
+  // Verifica prazos vencendo/vencidos uma vez após o carregamento inicial
+  useEffect(() => {
+    if (loading || dueSoonChecked.current || tasks.length === 0) return;
+    dueSoonChecked.current = true;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const dayAfterTomorrow = new Date(today);
+    dayAfterTomorrow.setDate(today.getDate() + 2);
+    const dateKey = today.toISOString().split('T')[0];
+
+    tasks
+      .filter(t => t.status !== 'Concluído' && t.due_date)
+      .forEach((task) => {
+        const storageKey = `notif_check_${dateKey}_${task.id}`;
+        if (localStorage.getItem(storageKey)) return;
+
+        const dueDate = new Date(task.due_date! + 'T00:00:00');
+
+        if (dueDate < today) {
+          localStorage.setItem(storageKey, '1');
+          createNotifDirect(task.assignee, 'overdue', 'Tarefa atrasada', `"${task.name}" está atrasada desde ${task.date}`, task.id);
+        } else if (dueDate < dayAfterTomorrow) {
+          localStorage.setItem(storageKey, '1');
+          const isDueToday = dueDate.getTime() === today.getTime();
+          createNotifDirect(task.assignee, 'due_soon', 'Prazo se aproximando', `"${task.name}" vence ${isDueToday ? 'hoje' : 'amanhã'}`, task.id);
+        }
+      });
+  }, [loading, tasks]);
+
   // --- Tarefas ---
 
   const addTask = useCallback(async (payload: NewTaskPayload): Promise<Task | null> => {
@@ -177,6 +229,8 @@ export function TasksProvider({ children }: { children: ReactNode }) {
 
     const task = rowToTask(data);
     setTasks(prev => [task, ...prev]);
+    // Notificar o responsável da nova tarefa
+    createNotifDirect(task.assignee, 'assigned', 'Nova tarefa atribuída', `Uma nova tarefa "${task.name}" foi atribuída para você`, task.id);
     return task;
   }, []);
 
@@ -224,6 +278,22 @@ export function TasksProvider({ children }: { children: ReactNode }) {
     }
 
     await Promise.all(logs);
+
+    // Notificações de eventos relevantes
+    const notifPromises: Promise<void>[] = [];
+    if (updates.assignee && updates.assignee !== currentTask.assignee) {
+      notifPromises.push(createNotifDirect(
+        updates.assignee, 'assigned', 'Nova tarefa atribuída',
+        `${currentTask.assignee} atribuiu "${currentTask.name}" para você`, id,
+      ));
+    }
+    if (updates.status === 'Concluído' && updates.status !== currentTask.status) {
+      TEAM_MEMBERS.forEach(member => notifPromises.push(createNotifDirect(
+        member, 'status_changed', 'Tarefa concluída',
+        `${currentTask.assignee} concluiu "${currentTask.name}"`, id,
+      )));
+    }
+    if (notifPromises.length > 0) await Promise.all(notifPromises);
   }, [logActivity]);
 
   const deleteTask = useCallback(async (id: string) => {

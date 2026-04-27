@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { AlugEasyLogo } from './AlugEasyLogo';
 import { TeamAvatar } from './TeamAvatar';
 import { WorkspaceContextMenu } from './WorkspaceContextMenu';
+import { useNotificationsContext } from '../../lib/NotificationsContext';
 import {
   Home, CheckSquare, Calendar, Bell, Folder, Code, DollarSign, Plus,
   LayoutGrid, CalendarDays, BarChart3, FileText, Settings, LogOut,
@@ -29,6 +30,7 @@ export function Sidebar({
   isCollapsed = false, onToggleCollapse,
 }: SidebarProps) {
   const [contextMenu, setContextMenu] = useState<{ workspace: any; x: number; y: number } | null>(null);
+  const { unreadCount } = useNotificationsContext();
 
   const getIconComponent = (iconId: string): LucideIcon => {
     const iconMap: Record<string, LucideIcon> = {
@@ -76,12 +78,12 @@ export function Sidebar({
         <Icon size={18} />
         {!isCollapsed && <span className="text-sm flex-1 text-left">{label}</span>}
         {!isCollapsed && badge !== undefined && badge > 0 && (
-          <span className="bg-[#EF4444] text-white text-xs px-1.5 py-0.5 rounded-full">
-            {badge}
+          <span className="ml-auto flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-medium text-white">
+            {badge > 9 ? '9+' : badge}
           </span>
         )}
         {isCollapsed && badge !== undefined && badge > 0 && (
-          <span className="absolute top-1 right-1 w-2 h-2 bg-[#EF4444] rounded-full" />
+          <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
         )}
       </button>
     );
@@ -174,7 +176,7 @@ export function Sidebar({
             <NavItem icon={Home} label="Início" view="dashboard" />
             <NavItem icon={CheckSquare} label="Minhas Tarefas" view="my-tasks" />
             <NavItem icon={Calendar} label="Cronograma" view="schedule" />
-            <NavItem icon={Bell} label="Notificações" view="notifications" />
+            <NavItem icon={Bell} label="Notificações" view="notifications" badge={unreadCount} />
           </div>
 
           {/* Workspaces */}
