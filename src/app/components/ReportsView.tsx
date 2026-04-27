@@ -1,10 +1,14 @@
+import { useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts';
+import { Download } from 'lucide-react';
 import { useTasksContext } from '../../lib/TasksContext';
+import { exportToCSV, exportToExcel } from '../../lib/exportData';
 
 const COLORS = ['#9CA3AF', '#3B82F6', '#F59E0B', '#22C55E'];
 
 export function ReportsView() {
   const { tasks } = useTasksContext();
+  const [exporting, setExporting] = useState(false);
 
   const statusCounts = tasks.reduce((acc, t) => {
     acc[t.status] = (acc[t.status] || 0) + 1;
@@ -56,9 +60,43 @@ export function ReportsView() {
   return (
     <div className="h-full overflow-y-auto custom-scrollbar bg-background">
       <div className="p-4 md:p-8 pb-12 min-h-full">
-        <div className="mb-6">
-          <h1 className="text-xl md:text-2xl font-bold text-foreground">Relatórios e Análises</h1>
-          <p className="text-sm text-muted-foreground">Visão geral do desempenho da equipe</p>
+        <div className="mb-6 flex items-start justify-between gap-4">
+          <div>
+            <h1 className="text-xl md:text-2xl font-bold text-foreground">Relatórios e Análises</h1>
+            <p className="text-sm text-muted-foreground">Visão geral do desempenho da equipe</p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <button
+              disabled={exporting}
+              onClick={async () => {
+                setExporting(true);
+                try { exportToCSV(tasks, `relatorio_alugueasy_${new Date().toISOString().split('T')[0]}.csv`); }
+                finally { setExporting(false); }
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-lg hover:bg-muted/50 text-sm font-medium transition-all disabled:opacity-50"
+              title="Exportar CSV"
+            >
+              {exporting
+                ? <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                : <Download size={14} />}
+              <span className="hidden sm:inline">CSV</span>
+            </button>
+            <button
+              disabled={exporting}
+              onClick={async () => {
+                setExporting(true);
+                try { exportToExcel(tasks, `relatorio_alugueasy_${new Date().toISOString().split('T')[0]}.xlsx`); }
+                finally { setExporting(false); }
+              }}
+              className="flex items-center gap-1.5 px-3 py-2 border border-[#10B981] text-[#10B981] rounded-lg hover:bg-[#10B981]/10 text-sm font-medium transition-all disabled:opacity-50"
+              title="Exportar Excel"
+            >
+              {exporting
+                ? <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                : <Download size={14} />}
+              <span className="hidden sm:inline">Excel</span>
+            </button>
+          </div>
         </div>
 
         {/* Stats Cards */}

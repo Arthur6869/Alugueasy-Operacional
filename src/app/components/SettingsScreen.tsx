@@ -1,7 +1,9 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { TeamAvatar } from './TeamAvatar';
-import { Upload, Sun, Moon, Bell, Lock, Globe, Mail, Smartphone, Camera, Eye, EyeOff, Check, X } from 'lucide-react';
+import { Upload, Sun, Moon, Bell, Lock, Globe, Mail, Smartphone, Camera, Eye, EyeOff, Check, X, Download, FileSpreadsheet } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useTasksContext } from '../../lib/TasksContext';
+import { exportToCSV, exportToExcel } from '../../lib/exportData';
 
 interface SettingsScreenProps {
   currentUser: 'Arthur' | 'Yasmim' | 'Alexandre' | 'Nikolas';
@@ -30,6 +32,9 @@ function loadNotifPrefs(user: string) {
 
 export function SettingsScreen({ currentUser, currentTheme }: SettingsScreenProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { tasks } = useTasksContext();
+  const [exportingCSV, setExportingCSV] = useState(false);
+  const [exportingXLSX, setExportingXLSX] = useState(false);
 
   // ── Profile ──
   const saved = loadProfileData(currentUser);
@@ -611,13 +616,52 @@ export function SettingsScreen({ currentUser, currentTheme }: SettingsScreenProp
           <h2 className="text-lg font-semibold text-red-600 mb-1">Zona de Perigo</h2>
           <p className="text-xs text-muted-foreground mb-4">Ações irreversíveis que afetam permanentemente sua conta e dados.</p>
           <div className="space-y-3">
-            <button
-              onClick={() => { if (confirm('Exportar todos os seus dados?')) toast('success', 'Exportação iniciada! Você receberá um email quando estiver pronto.'); }}
-              className="w-full px-4 py-3 border border-border rounded-lg hover:bg-muted/50 text-left transition-all"
-            >
-              <p className="text-sm font-medium text-foreground">Exportar Dados</p>
-              <p className="text-xs text-muted-foreground">Baixe uma cópia de todos os seus dados</p>
-            </button>
+            <div className="border border-border rounded-lg p-4">
+              <p className="text-sm font-medium text-foreground mb-1">Exportar Dados</p>
+              <p className="text-xs text-muted-foreground mb-3">Baixe uma cópia de todas as tarefas ({tasks.length} tarefas)</p>
+              <div className="flex gap-2">
+                <button
+                  disabled={exportingCSV}
+                  onClick={async () => {
+                    setExportingCSV(true);
+                    try {
+                      exportToCSV(tasks);
+                      toast('success', `${tasks.length} tarefas exportadas com sucesso`);
+                    } catch {
+                      toast('error', 'Erro ao exportar CSV. Tente novamente.');
+                    } finally {
+                      setExportingCSV(false);
+                    }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 border border-border rounded-lg hover:bg-muted/50 text-sm font-medium transition-all disabled:opacity-50"
+                >
+                  {exportingCSV
+                    ? <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    : <Download size={15} />}
+                  Exportar CSV
+                </button>
+                <button
+                  disabled={exportingXLSX}
+                  onClick={async () => {
+                    setExportingXLSX(true);
+                    try {
+                      exportToExcel(tasks);
+                      toast('success', `${tasks.length} tarefas exportadas com sucesso`);
+                    } catch {
+                      toast('error', 'Erro ao exportar Excel. Tente novamente.');
+                    } finally {
+                      setExportingXLSX(false);
+                    }
+                  }}
+                  className="flex items-center gap-2 px-4 py-2 border border-[#10B981] text-[#10B981] rounded-lg hover:bg-[#10B981]/10 text-sm font-medium transition-all disabled:opacity-50"
+                >
+                  {exportingXLSX
+                    ? <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                    : <FileSpreadsheet size={15} />}
+                  Exportar Excel
+                </button>
+              </div>
+            </div>
             <button
               onClick={() => { if (confirm('Deseja desativar sua conta? Pode ser reativada em até 30 dias.')) toast('error', 'Funcionalidade de desativação em desenvolvimento'); }}
               className="w-full px-4 py-3 border border-red-200 rounded-lg hover:bg-red-50 dark:hover:bg-red-950/30 text-left transition-all"
