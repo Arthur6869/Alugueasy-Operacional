@@ -1,7 +1,8 @@
-import { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useState, useEffect, useCallback, useRef, ReactNode } from 'react';
 import { supabase } from './supabase';
 import { format, isToday, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { useActivityLog } from '../hooks/useActivityLog';
 
 // ---------------------------------------------------------------
 // Tipos UI (o que os componentes esperam)
@@ -124,6 +125,12 @@ export function TasksProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Ref para acessar tasks atuais dentro de useCallback sem adicionar 'tasks' como dep
+  const tasksRef = useRef<Task[]>([]);
+  useEffect(() => { tasksRef.current = tasks; }, [tasks]);
+
+  const { logActivity } = useActivityLog();
+
   const fetchAll = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -174,6 +181,8 @@ export function TasksProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const updateTask = useCallback(async (id: string, updates: Partial<Task>) => {
+    const currentTask = tasksRef.current.find(t => t.id === id);
+
     const dbUpdates: any = { updated_at: new Date().toISOString() };
     if (updates.name !== undefined) dbUpdates.title = updates.name;
     if (updates.status !== undefined) dbUpdates.status = updates.status;
@@ -192,7 +201,30 @@ export function TasksProvider({ children }: { children: ReactNode }) {
         ? { ...t, ...updates, date: updates.due_date ? formatDisplayDate(updates.due_date) : t.date }
         : t
     ));
-  }, []);
+
+    // Registrar log de atividade para cada campo alterado
+    if (!currentTask) return;
+    const author = currentTask.assignee;
+    const logs: Promise<void>[] = [];
+
+    if (updates.status && updates.status !== currentTask.status) {
+      logs.push(logActivity({ taskId: id, author, action: 'alterou o status', field: 'status', oldValue: currentTask.status, newValue: updates.status }));
+    }
+    if (updates.priority && updates.priority !== currentTask.priority) {
+      logs.push(logActivity({ taskId: id, author, action: 'alterou a prioridade', field: 'prioridade', oldValue: currentTask.priority, newValue: updates.priority }));
+    }
+    if (updates.assignee && updates.assignee !== currentTask.assignee) {
+      logs.push(logActivity({ taskId: id, author, action: 'alterou o responsável', field: 'responsável', oldValue: currentTask.assignee, newValue: updates.assignee }));
+    }
+    if (updates.due_date !== undefined && updates.due_date !== currentTask.due_date) {
+      logs.push(logActivity({ taskId: id, author, action: 'alterou a data de entrega', field: 'prazo', oldValue: currentTask.due_date ?? 'sem prazo', newValue: updates.due_date ?? 'sem prazo' }));
+    }
+    if (updates.name && updates.name !== currentTask.name) {
+      logs.push(logActivity({ taskId: id, author, action: 'renomeou a tarefa', field: 'título', oldValue: currentTask.name, newValue: updates.name }));
+    }
+
+    await Promise.all(logs);
+  }, [logActivity]);
 
   const deleteTask = useCallback(async (id: string) => {
     const { error } = await supabase.from('tasks').delete().eq('id', id);

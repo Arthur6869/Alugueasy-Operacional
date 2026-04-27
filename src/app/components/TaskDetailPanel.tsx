@@ -6,6 +6,9 @@ import { PriorityIndicator } from './PriorityIndicator';
 import { useTasksContext } from '../../lib/TasksContext';
 import { useComments } from '../../hooks/useComments';
 import { useSubtasks } from '../../hooks/useSubtasks';
+import { useActivityLog } from '../../hooks/useActivityLog';
+import { formatDistanceToNow } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 
 interface TaskDetailPanelProps {
   task: any;
@@ -71,7 +74,7 @@ export function TaskDetailPanel({ task, onClose, onUpdate, onDelete }: TaskDetai
     [dbComments, localReplies]
   );
 
-  const activities: { id: string; user: typeof teamMembers[number]; action: string; value: string; time: string }[] = [];
+  const { activities, fetchActivities } = useActivityLog();
 
   const completedSubtasks = subtasks.filter(s => s.completed).length;
   const totalSubtasks = subtasks.length;
@@ -92,13 +95,14 @@ export function TaskDetailPanel({ task, onClose, onUpdate, onDelete }: TaskDetai
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Busca comentários e subtarefas persistidos ao abrir o painel
+  // Busca comentários, subtarefas e atividades persistidos ao abrir o painel
   useEffect(() => {
     if (task.id) {
       fetchComments(task.id);
       fetchSubtasks(task.id);
+      fetchActivities(task.id);
     }
-  }, [task.id, fetchComments, fetchSubtasks]);
+  }, [task.id, fetchComments, fetchSubtasks, fetchActivities]);
 
   const handleAddComment = async () => {
     if (!newComment.trim()) return;
@@ -701,21 +705,37 @@ export function TaskDetailPanel({ task, onClose, onUpdate, onDelete }: TaskDetai
               {/* Activity Tab */}
               {activeTab === 'activity' && (
                 <div className="space-y-3">
-                  {activities.map((activity) => (
-                    <div key={activity.id} className="flex gap-3 items-start">
-                      <TeamAvatar member={activity.user} size="sm" />
-                      <div className="flex-1">
-                        <p className="text-sm text-[#111827]">
-                          <span className="font-medium">{activity.user}</span>{' '}
-                          <span className="text-[#6B7280]">{activity.action}</span>{' '}
-                          {activity.value && (
-                            <span className="font-medium">{activity.value}</span>
-                          )}
-                        </p>
-                        <p className="text-xs text-[#6B7280] mt-1">{activity.time}</p>
-                      </div>
+                  {activities.length === 0 ? (
+                    <div className="py-8 text-center">
+                      <p className="text-sm text-[#6B7280]">Nenhuma atividade registrada ainda.</p>
                     </div>
-                  ))}
+                  ) : (
+                    activities.map((activity) => (
+                      <div key={activity.id} className="flex gap-3 items-start">
+                        <TeamAvatar member={activity.author as typeof teamMembers[number]} size="sm" />
+                        <div className="flex-1">
+                          <p className="text-sm text-[#111827]">
+                            <span className="font-medium">{activity.author}</span>{' '}
+                            <span className="text-[#6B7280]">{activity.action}</span>
+                            {activity.field && (
+                              <span className="text-[#6B7280]">
+                                {': '}
+                                <span className="font-medium text-[#111827]">{activity.old_value}</span>
+                                {' → '}
+                                <span className="font-medium text-[#4A9EDB]">{activity.new_value}</span>
+                              </span>
+                            )}
+                          </p>
+                          <p className="text-xs text-[#6B7280] mt-1">
+                            {formatDistanceToNow(new Date(activity.created_at), {
+                              addSuffix: true,
+                              locale: ptBR,
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  )}
                 </div>
               )}
             </div>
