@@ -3,6 +3,7 @@ import { supabase } from './supabase';
 import { format, isToday, parseISO } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useActivityLog } from '../hooks/useActivityLog';
+import { Automation } from '../hooks/useAutomations';
 
 // ---------------------------------------------------------------
 // Tipos UI (o que os componentes esperam)
@@ -130,6 +131,10 @@ interface TasksContextValue {
   addWorkspace: (w: Omit<Workspace, 'id'> & { created_by: TeamMember }) => Promise<Workspace | null>;
   updateWorkspace: (id: string, updates: Partial<Workspace>) => Promise<void>;
   deleteWorkspace: (id: string) => Promise<void>;
+
+  // Automações
+  automations: Automation[];
+  setAutomations: React.Dispatch<React.SetStateAction<Automation[]>>;
 }
 
 const TasksContext = createContext<TasksContextValue | null>(null);
@@ -143,10 +148,15 @@ export function TasksProvider({ children }: { children: ReactNode }) {
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [automations, setAutomations] = useState<Automation[]>([]);
 
   // Ref para acessar tasks atuais dentro de useCallback sem adicionar 'tasks' como dep
   const tasksRef = useRef<Task[]>([]);
   useEffect(() => { tasksRef.current = tasks; }, [tasks]);
+
+  // Ref para acessar automations dentro de callbacks sem adicionar como dep
+  const automationsRef = useRef<Automation[]>([]);
+  useEffect(() => { automationsRef.current = automations; }, [automations]);
 
   // Flag para verificar prazos apenas uma vez por carregamento
   const dueSoonChecked = useRef(false);
@@ -325,7 +335,58 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       )));
     }
     if (notifPromises.length > 0) await Promise.all(notifPromises);
+
+    // Motor de automações
+    const newTask = tasksRef.current.find(t => t.id === id);
+    if (newTask) await runAutomations(currentTask, newTask, automationsRef.current);
   }, [logActivity]);
+
+  async function runAutomations(oldTask: Task, newTask: Task, autos: Automation[]) {
+    for (const auto of autos.filter(a => a.enabled)) {
+      let triggered = false;
+
+      if (auto.trigger_type === 'status_changed' &&
+          oldTask.status !== newTask.status &&
+          newTask.status === auto.trigger_value) {
+        triggered = true;
+      }
+      if (auto.trigger_type === 'priority_changed' &&
+          oldTask.priority !== newTask.priority &&
+          newTask.priority === auto.trigger_value) {
+        triggered = true;
+      }
+      if (auto.trigger_type === 'assignee_changed' &&
+          oldTask.assignee !== newTask.assignee) {
+        triggered = true;
+      }
+
+      if (!triggered) continue;
+
+      if (auto.action_type === 'change_status' && auto.action_value) {
+        await supabase.from('tasks').update({ status: auto.action_value }).eq('id', newTask.id);
+        setTasks(prev => prev.map(t => t.id === newTask.id ? { ...t, status: auto.action_value as TaskStatus } : t));
+      }
+      if (auto.action_type === 'change_priority' && auto.action_value) {
+        await supabase.from('tasks').update({ priority: auto.action_value }).eq('id', newTask.id);
+        setTasks(prev => prev.map(t => t.id === newTask.id ? { ...t, priority: auto.action_value as TaskPriority } : t));
+      }
+      if (auto.action_type === 'notify_assignee' && newTask.assignee) {
+        await createNotifDirect(
+          newTask.assignee, 'status_changed', 'Automação executada',
+          `Regra "${auto.name}" foi ativada na tarefa "${newTask.name}"`, newTask.id,
+        );
+      }
+      if (auto.action_type === 'create_subtask' && auto.action_value) {
+        await supabase.from('subtasks').insert({ task_id: newTask.id, title: auto.action_value, completed: false });
+      }
+
+      await supabase
+        .from('automations')
+        .update({ run_count: auto.run_count + 1 })
+        .eq('id', auto.id);
+      setAutomations(prev => prev.map(a => a.id === auto.id ? { ...a, run_count: a.run_count + 1 } : a));
+    }
+  }
 
   const deleteTask = useCallback(async (id: string) => {
     const { error } = await supabase.from('tasks').delete().eq('id', id);
@@ -368,6 +429,7 @@ export function TasksProvider({ children }: { children: ReactNode }) {
       tasks, workspaces, loading, error,
       addTask, updateTask, deleteTask, refreshTasks,
       addWorkspace, updateWorkspace, deleteWorkspace,
+      automations, setAutomations,
     }}>
       {children}
     </TasksContext.Provider>

@@ -13,6 +13,7 @@ import { NotificationsPanel } from './components/NotificationsPanel';
 import { SettingsScreen } from './components/SettingsScreen';
 import { ReportsView } from './components/ReportsView';
 import { GanttView } from './components/GanttView';
+import { AutomationsPanel } from './components/AutomationsPanel';
 import { NewTaskModal } from './components/NewTaskModal';
 import { NewWorkspaceModal } from './components/NewWorkspaceModal';
 import { SearchModal } from './components/SearchModal';
@@ -182,6 +183,7 @@ function AppInner() {
       case 'desenvolvimento': return 'Desenvolvimento';
       case 'financeiro': return 'Financeiro';
       case 'schedule': return 'Cronograma';
+      case 'automations': return 'Automações';
       default: return activeView.charAt(0).toUpperCase() + activeView.slice(1);
     }
   };
@@ -232,6 +234,7 @@ function AppInner() {
       case 'settings': return <SettingsScreen currentUser={currentUser} currentTheme={theme} />;
       case 'reports': return <ReportsView />;
       case 'gantt': return <GanttView />;
+      case 'automations': return <AutomationsPanel currentUser={currentUser} />;
       default: return <Dashboard currentUser={currentUser} />;
     }
   };

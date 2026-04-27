@@ -7,7 +7,7 @@ import { usePresence } from '../../hooks/usePresence';
 import {
   Home, CheckSquare, Calendar, Bell, Folder, Code, DollarSign, Plus,
   LayoutGrid, CalendarDays, BarChart3, FileText, Settings, LogOut,
-  LucideIcon, MoreVertical, ChevronLeft, ChevronRight,
+  LucideIcon, MoreVertical, ChevronLeft, ChevronRight, Zap,
 } from 'lucide-react';
 import * as Icons from 'lucide-react';
 
@@ -262,6 +262,7 @@ export function Sidebar({
             <NavItem icon={CalendarDays} label="Calendário" view="calendar" />
             <NavItem icon={BarChart3} label="Gráfico de Gantt" view="gantt" />
             <NavItem icon={FileText} label="Relatórios" view="reports" />
+            <NavItem icon={Zap} label="Automações" view="automations" />
           </div>
         </div>
 
