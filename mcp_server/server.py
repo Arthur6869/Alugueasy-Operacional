@@ -1,7 +1,7 @@
 ﻿"""
-Alugueasy MCP Server
+EasyTask MCP Server
 ====================
-Servidor MCP que expõe o codebase e schema do Alugueasy para agentes de IA.
+Servidor MCP que expõe o codebase e schema do EasyTask para agentes de IA.
 Permite que Claude Code, Claude API e outros agentes leiam, analisem e
 sugiram melhorias para o sistema de forma segura e autenticada.
 
@@ -11,7 +11,7 @@ Requisitos:
 Execução:
     python server.py
     # ou via Claude Code:
-    # claude mcp add alugueasy-mcp python server.py
+    # claude mcp add easytask-mcp python server.py
 """
 
 import difflib
@@ -32,9 +32,10 @@ from fastmcp import FastMCP, Context
 
 load_dotenv(pathlib.Path(__file__).parent / ".env")
 
-# Caminho raiz do projeto Alugueasy (ajuste para o seu caminho local)
+# Caminho raiz do projeto EasyTask (ajuste para o seu caminho local)
+# Aceita EASYTASK_PROJECT_ROOT (novo) ou ALUGUEASY_PROJECT_ROOT (legado) para retrocompatibilidade
 PROJECT_ROOT = pathlib.Path(
-    os.getenv("ALUGUEASY_PROJECT_ROOT", "../")
+    os.getenv("EASYTASK_PROJECT_ROOT") or os.getenv("ALUGUEASY_PROJECT_ROOT", "../")
 ).resolve()
 
 # Token de autenticação — defina em .env como MCP_AUTH_TOKEN=sua_chave_secreta
@@ -88,7 +89,7 @@ ALLOWED_EXTENSIONS = {".ts", ".tsx", ".js", ".jsx", ".css", ".json", ".md", ".sq
 FORBIDDEN_DIRS = {
     ".git", "node_modules", "dist", "build", ".env",
     ".venv",                      # ambiente Python
-    "Sistema Alugueasy Tarefas",  # vault Obsidian
+    "Sistema EasyTask Tarefas",  # vault Obsidian
     "__pycache__",                # cache Python
     ".obsidian",                  # config Obsidian
     "backups",                    # backups do MCP
@@ -99,7 +100,7 @@ FORBIDDEN_DIRS = {
 # ---------------------------------------------------------------------------
 
 mcp = FastMCP(
-    name="alugueasy-mcp",
+    name="easytask-mcp",
     version="1.0.0",
 )
 
@@ -166,7 +167,7 @@ def _walk_project(base_dir: pathlib.Path, max_files: int = 200) -> list[dict]:
 @mcp.tool()
 def read_file(file_path: str) -> str:
     """
-    Lê o conteúdo de um arquivo do projeto Alugueasy.
+    Lê o conteúdo de um arquivo do projeto EasyTask.
 
     Args:
         file_path: Caminho relativo ao root do projeto.
@@ -202,7 +203,7 @@ def read_file(file_path: str) -> str:
 @mcp.tool()
 def list_components() -> str:
     """
-    Lista todos os componentes React do projeto Alugueasy.
+    Lista todos os componentes React do projeto EasyTask.
 
     Returns:
         JSON com nome, caminho e tamanho de cada componente .tsx/.ts
@@ -231,7 +232,7 @@ def list_components() -> str:
 @mcp.tool()
 def get_db_schema() -> str:
     """
-    Retorna o schema do banco de dados Supabase do Alugueasy.
+    Retorna o schema do banco de dados Supabase do EasyTask.
     Baseado no arquivo SUPABASE_SETUP.md e arquivos de tipos TypeScript.
 
     Returns:
@@ -260,7 +261,7 @@ def get_db_schema() -> str:
 
     # Fallback: retorna schema conhecido do projeto
     return """
-## Schema Alugueasy (baseado na documentação do projeto)
+## Schema EasyTask (baseado na documentação do projeto)
 
 ### Tabela: tasks
 - id: UUID (PK)
@@ -329,7 +330,7 @@ def list_project_structure(directory: str = "") -> str:
 @mcp.tool()
 def get_project_context() -> str:
     """
-    Retorna o contexto completo do projeto Alugueasy para o agente.
+    Retorna o contexto completo do projeto EasyTask para o agente.
     Inclui: stack tecnológica, membros da equipe, regras de negócio e arquitetura.
 
     Returns:
@@ -352,7 +353,7 @@ def get_project_context() -> str:
         return "\n\n---\n\n".join(docs)
 
     return """
-## Contexto do Projeto Alugueasy
+## Contexto do Projeto EasyTask
 
 **Stack:** React 18 + TypeScript + Tailwind CSS v4 + Vite + Supabase
 
@@ -414,7 +415,7 @@ def suggest_improvement(
 ```
 
 ### Instruções para o agente:
-Analise o código acima considerando o contexto do Alugueasy (React + TypeScript + Tailwind + Supabase).
+Analise o código acima considerando o contexto do EasyTask (React + TypeScript + Tailwind + Supabase).
 Foque em: {improvement_type}.
 Forneça sugestões concretas com exemplos de código quando aplicável.
 """
@@ -1237,7 +1238,7 @@ def write_code_improvement(file_path: str, issue_description: str) -> dict:
 def generate_test_suite(component_path: str) -> dict:
     """
     Gera arquivo .test.tsx completo com Vitest + React Testing Library
-    para um componente do AlugEasy. Inclui mocks de Supabase e TasksContext.
+    para um componente do EasyTask. Inclui mocks de Supabase e TasksContext.
 
     Args:
         component_path: Caminho relativo (ex: 'src/app/components/Dashboard.tsx')
@@ -1425,7 +1426,7 @@ def generate_weekly_report(week_offset: int = 0) -> dict:
 
     # Texto formatado para WhatsApp
     lines = [
-        f"📊 *Relatório Semanal AlugEasy*",
+        f"📊 *Relatório Semanal EasyTask*",
         f"📅 {week_start.strftime('%d/%m')} – {week_end.strftime('%d/%m/%Y')}",
         "",
         f"✅ Tarefas concluídas: {total_completed}",
@@ -2113,38 +2114,38 @@ def ask_about_project(question: str) -> dict:
 # RESOURCES — Dados que o agente pode "subscrever"
 # ---------------------------------------------------------------------------
 
-@mcp.resource("alugueasy://src/{file_path}")
+@mcp.resource("easytask://src/{file_path}")
 def get_source_file(file_path: str) -> str:
     """
     Resource para leitura direta de arquivos fonte.
-    URI: alugueasy://src/app/components/Dashboard.tsx
+    URI: easytask://src/app/components/Dashboard.tsx
     """
     return read_file(f"src/{file_path}")
 
 
-@mcp.resource("alugueasy://schema")
+@mcp.resource("easytask://schema")
 def get_schema_resource() -> str:
     """
     Resource do schema completo do banco de dados.
-    URI: alugueasy://schema
+    URI: easytask://schema
     """
     return get_db_schema()
 
 
-@mcp.resource("alugueasy://docs")
+@mcp.resource("easytask://docs")
 def get_documentation() -> str:
     """
     Resource da documentação completa do projeto.
-    URI: alugueasy://docs
+    URI: easytask://docs
     """
     return get_project_context()
 
 
-@mcp.resource("alugueasy://config")
+@mcp.resource("easytask://config")
 def get_config() -> str:
     """
     Resource dos arquivos de configuração (package.json, vite.config.ts, etc).
-    URI: alugueasy://config
+    URI: easytask://config
     """
     config_files = ["package.json", "vite.config.ts", "tsconfig.json", "tailwind.config.ts"]
     configs = []
@@ -2174,7 +2175,7 @@ def review_component(component_name: str, component_path: str) -> str:
 Você é um Engenheiro de Software Sênior especialista em React, TypeScript e sistemas similares ao Monday.com.
 
 ## Contexto
-Projeto: Alugueasy Operacional — sistema de gestão de tarefas para equipe de aluguel de imóveis.
+Projeto: EasyTask — sistema de gestão de tarefas para equipe de aluguel de imóveis.
 Stack: React 18 + TypeScript + Tailwind CSS v4 + Supabase + Vite.
 
 ## Tarefa
@@ -2228,7 +2229,7 @@ def suggest_feature(
         feature_description: Descrição do que a feature deve fazer
     """
     return f"""
-Você é o Arquiteto Principal do Alugueasy Operacional.
+Você é o Arquiteto Principal do EasyTask.
 
 ## Nova feature solicitada: {feature_name}
 
@@ -2246,7 +2247,7 @@ Quais componentes precisam ser criados?
 Como eles se encaixam na arquitetura atual de `src/app/components/`?
 
 ### 3. Integração com o sistema de eventos
-O Alugueasy usa `CustomEvent API` para comunicação entre componentes.
+O EasyTask usa `CustomEvent API` para comunicação entre componentes.
 Quais novos eventos precisam ser criados?
 
 ### 4. Automação sugerida (padrão Monday.com)
@@ -2269,7 +2270,7 @@ def audit_security() -> str:
     return """
 Você é um especialista em segurança web com foco em aplicações React + Supabase.
 
-## Auditoria de segurança — Alugueasy Operacional
+## Auditoria de segurança — EasyTask
 
 Analise o codebase focando em:
 
@@ -2312,7 +2313,7 @@ def improve_ux(screen_name: str) -> str:
     return f"""
 Você é um Designer de Produto especialista em ferramentas de produtividade tipo Monday.com.
 
-## Análise de UX: tela **{screen_name}** do Alugueasy
+## Análise de UX: tela **{screen_name}** do EasyTask
 
 ### Contexto
 4 usuários internos (Arthur, Yasmim, Alexandre, Nikolas).
@@ -2337,10 +2338,10 @@ Para cada melhoria:
 
 #### 4. Micro-interações a adicionar
 Sugestões de animações CSS/Framer Motion que melhoram a experiência
-sem poluir a interface (princípio de UX limpa do Alugueasy).
+sem poluir a interface (princípio de UX limpa do EasyTask).
 
 #### 5. Responsive design
-O Alugueasy tem responsividade limitada para mobile.
+O EasyTask tem responsividade limitada para mobile.
 Priorize os ajustes mais impactantes para uso em smartphone.
 """
 
@@ -2354,7 +2355,7 @@ if __name__ == "__main__":
 
     print(f"""
 ╔══════════════════════════════════════════════════╗
-║          Alugueasy MCP Server v1.0.0             ║
+║          EasyTask MCP Server v1.0.0             ║
 ║                                                  ║
 ║  Project root : {str(PROJECT_ROOT)[:32]:<32} ║
 ║  Auth token   : {MCP_AUTH_TOKEN[:8]}...                      ║
@@ -2370,10 +2371,10 @@ Tools disponíveis:
   • suggest_improvement(component_path, type)
 
 Resources:
-  • alugueasy://src/{{file_path}}
-  • alugueasy://schema
-  • alugueasy://docs
-  • alugueasy://config
+  • easytask://src/{{file_path}}
+  • easytask://schema
+  • easytask://docs
+  • easytask://config
 
 Prompts:
   • review_component

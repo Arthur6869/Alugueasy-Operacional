@@ -57,7 +57,7 @@ export function TaskTableReadOnly({ filterGroup }: TaskTableReadOnlyProps) {
       <div className="p-8 pb-20 min-h-full">
         {/* Page Header */}
         <div className="mb-6">
-          <p className="text-sm text-muted-foreground mb-1">AlugEasy / Visualização</p>
+          <p className="text-sm text-muted-foreground mb-1">EasyTask / Visualização</p>
           <h1 className="text-2xl font-bold text-foreground">Tarefas do Grupo</h1>
           <p className="text-sm text-muted-foreground mt-1">Modo somente leitura - Use "Cronograma" para editar</p>
         </div>

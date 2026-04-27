@@ -70,7 +70,7 @@ export function ReportsView() {
               disabled={exporting}
               onClick={async () => {
                 setExporting(true);
-                try { exportToCSV(tasks, `relatorio_alugueasy_${new Date().toISOString().split('T')[0]}.csv`); }
+                try { exportToCSV(tasks, `relatorio_easytask_${new Date().toISOString().split('T')[0]}.csv`); }
                 finally { setExporting(false); }
               }}
               className="flex items-center gap-1.5 px-3 py-2 border border-border rounded-lg hover:bg-muted/50 text-sm font-medium transition-all disabled:opacity-50"
@@ -85,7 +85,7 @@ export function ReportsView() {
               disabled={exporting}
               onClick={async () => {
                 setExporting(true);
-                try { exportToExcel(tasks, `relatorio_alugueasy_${new Date().toISOString().split('T')[0]}.xlsx`); }
+                try { exportToExcel(tasks, `relatorio_easytask_${new Date().toISOString().split('T')[0]}.xlsx`); }
                 finally { setExporting(false); }
               }}
               className="flex items-center gap-1.5 px-3 py-2 border border-[#10B981] text-[#10B981] rounded-lg hover:bg-[#10B981]/10 text-sm font-medium transition-all disabled:opacity-50"

@@ -38,7 +38,7 @@ export function exportToCSV(tasks: Task[], filename?: string): void {
   const url = URL.createObjectURL(blob);
   const link = document.createElement('a');
   link.href = url;
-  link.download = filename ?? `alugueasy_tarefas_${buildTimestamp()}.csv`;
+  link.download = filename ?? `easytask_tarefas_${buildTimestamp()}.csv`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -69,5 +69,5 @@ export function exportToExcel(tasks: Task[], filename?: string): void {
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Tarefas');
-  XLSX.writeFile(wb, filename ?? `alugueasy_tarefas_${buildTimestamp()}.xlsx`);
+  XLSX.writeFile(wb, filename ?? `easytask_tarefas_${buildTimestamp()}.xlsx`);
 }

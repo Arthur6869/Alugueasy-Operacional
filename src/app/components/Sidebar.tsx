@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlugEasyLogo } from './AlugEasyLogo';
+import { EasyTaskLogo } from './EasyTaskLogo';
 import { TeamAvatar } from './TeamAvatar';
 import { WorkspaceContextMenu } from './WorkspaceContextMenu';
 import { useNotificationsContext } from '../../lib/NotificationsContext';
@@ -151,10 +151,10 @@ export function Sidebar({
         <div className={`border-b border-[#2A4F7C] flex items-center ${isCollapsed ? 'justify-center py-5 px-2' : 'p-5'}`}>
           {isCollapsed ? (
             <div className="w-8 h-8 bg-[#4A9EDB] rounded-lg flex items-center justify-center text-white font-bold text-sm">
-              AE
+              ET
             </div>
           ) : (
-            <AlugEasyLogo variant="light" showVersion />
+            <EasyTaskLogo variant="light" showTagline />
           )}
         </div>
 
@@ -318,7 +318,7 @@ export function Sidebar({
                 <TeamAvatar member={currentUser} size="md" />
                 <div className="flex-1 min-w-0">
                   <p className="text-white text-sm font-medium">{currentUser}</p>
-                  <p className="text-gray-400 text-xs">Equipe AlugEasy</p>
+                  <p className="text-gray-400 text-xs">Equipe EasyTask</p>
                 </div>
               </div>
               <button

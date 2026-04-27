@@ -253,7 +253,7 @@ export function SettingsScreen({ currentUser, currentTheme }: SettingsScreenProp
 
             <div className="flex-1 min-w-0">
               <p className="font-semibold text-foreground">{firstName} {lastName}</p>
-              <p className="text-sm text-muted-foreground">{currentUser.toLowerCase()}@alugueasy.com</p>
+              <p className="text-sm text-muted-foreground">{currentUser.toLowerCase()}@easytask.com.br</p>
               <button
                 onClick={() => fileInputRef.current?.click()}
                 className="mt-1.5 text-sm text-[#4A9EDB] hover:underline flex items-center gap-1"
@@ -314,7 +314,7 @@ export function SettingsScreen({ currentUser, currentTheme }: SettingsScreenProp
               <label className="block text-sm font-medium text-foreground mb-1.5">Email</label>
               <input
                 type="email"
-                value={`${currentUser.toLowerCase()}@alugueasy.com`}
+                value={`${currentUser.toLowerCase()}@easytask.com.br`}
                 disabled
                 className="w-full px-3 py-2 border border-border rounded-lg bg-muted text-muted-foreground cursor-not-allowed text-sm"
               />
@@ -591,7 +591,7 @@ export function SettingsScreen({ currentUser, currentTheme }: SettingsScreenProp
                 <TeamAvatar member={member} size="md" />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground">{member}</p>
-                  <p className="text-xs text-muted-foreground">{member.toLowerCase()}@alugueasy.com</p>
+                  <p className="text-xs text-muted-foreground">{member.toLowerCase()}@easytask.com.br</p>
                 </div>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
                   member === currentUser ? 'bg-blue-100 text-[#4A9EDB]' : 'bg-muted text-muted-foreground'
@@ -681,8 +681,8 @@ export function SettingsScreen({ currentUser, currentTheme }: SettingsScreenProp
 
         {/* Footer */}
         <div className="text-center text-xs text-muted-foreground space-y-1">
-          <p>AlugEasy Task Manager v1.0.0</p>
-          <p>© 2026 AlugEasy. Todos os direitos reservados.</p>
+          <p>EasyTask v1.0.0</p>
+          <p>© 2026 EasyTask. Todos os direitos reservados.</p>
           <div className="flex items-center justify-center gap-3 mt-3">
             {['Termos de Serviço', 'Política de Privacidade', 'Suporte'].map(label => (
               <button key={label} onClick={() => toast('success', `Abrindo ${label}...`)} className="hover:text-[#4A9EDB] transition-all">{label}</button>

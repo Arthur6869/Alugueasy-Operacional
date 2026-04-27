@@ -9,7 +9,7 @@ interface HeaderProps {
   onMenuToggle?: () => void;
 }
 
-export function Header({ title, breadcrumb = 'AlugEasy', currentUser, notificationCount = 0, onMenuToggle }: HeaderProps) {
+export function Header({ title, breadcrumb = 'EasyTask', currentUser, notificationCount = 0, onMenuToggle }: HeaderProps) {
   return (
     <div className="h-16 bg-white dark:bg-card border-b border-[#E5E7EB] dark:border-border flex items-center justify-between px-4 md:px-8 shrink-0">
       <div className="flex items-center gap-3 min-w-0">

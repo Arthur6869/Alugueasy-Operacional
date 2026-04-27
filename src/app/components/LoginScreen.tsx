@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { AlugEasyLogo } from './AlugEasyLogo';
+import { EasyTaskLogo } from './EasyTaskLogo';
 import { Eye, EyeOff, Mail, Lock, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
@@ -60,7 +60,7 @@ export function LoginScreen({ onLogin }: LoginScreenProps) {
 
       <div className="relative bg-white rounded-2xl shadow-2xl p-6 md:p-10 w-full max-w-[420px] mx-4">
         <div className="flex flex-col items-center mb-8">
-          <AlugEasyLogo variant="dark" />
+          <EasyTaskLogo variant="dark" showTagline />
         </div>
 
         <h1 className="text-2xl font-bold text-[#1E3A5F] text-center mb-2">
